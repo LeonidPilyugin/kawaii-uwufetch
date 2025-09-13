@@ -1,0 +1,3328 @@
+diff --color -Naru uwufetch-2.1/fetch.c uwufetch-2.2/fetch.c
+--- uwufetch-2.1/fetch.c	2023-02-13 15:38:44.000000000 +0300
++++ uwufetch-2.2/fetch.c	2025-09-13 20:12:35.176056523 +0300
+@@ -14,7 +14,7 @@
+  */
+ 
+ #ifdef __APPLE__
+-	#include <TargetConditionals.h> // for checking iOS
++  #include <TargetConditionals.h> // for checking iOS
+ #endif
+ #include <dirent.h>
+ #include <stdio.h>
+@@ -22,31 +22,31 @@
+ #include <string.h>
+ #include <unistd.h>
+ #if defined(__APPLE__) || defined(__BSD__)
+-	#include <sys/sysctl.h>
+-	#if defined(__OPENBSD__)
+-		#include <sys/time.h>
+-	#else
+-		#include <time.h>
+-	#endif // defined(__OPENBSD__)
+-#else		 // defined(__APPLE__) || defined(__BSD__)
+-	#ifdef __BSD__
+-	#else // defined(__BSD__) || defined(_WIN32)
+-		#ifndef _WIN32
+-			#ifndef __OPENBSD__
+-				#include <sys/sysinfo.h>
+-			#else	 // __OPENBSD__
+-			#endif // __OPENBSD__
+-		#else		 // _WIN32
+-			#include <sysinfoapi.h>
+-		#endif // _WIN32
+-	#endif	 // defined(__BSD__) || defined(_WIN32)
+-#endif		 // defined(__APPLE__) || defined(__BSD__)
+-#ifndef _WIN32
+-	#include <sys/ioctl.h>
+-	#include <sys/utsname.h>
+-	#include <pthread.h> // linux only right now
+-#else									 // _WIN32
+-	#include <windows.h>
++  #include <sys/sysctl.h>
++  #if defined(__OPENBSD__)
++    #include <sys/time.h>
++  #else
++    #include <time.h>
++  #endif // defined(__OPENBSD__)
++#else    // defined(__APPLE__) || defined(__BSD__)
++  #ifdef __BSD__
++  #else // defined(__BSD__) || defined(_WIN32)
++    #ifndef _WIN32
++      #ifndef __OPENBSD__
++        #include <sys/sysinfo.h>
++      #else  // __OPENBSD__
++      #endif // __OPENBSD__
++    #else    // _WIN32
++      #include <sysinfoapi.h>
++    #endif // _WIN32
++  #endif   // defined(__BSD__) || defined(_WIN32)
++#endif     // defined(__APPLE__) || defined(__BSD__)
++#ifndef _WIN32
++  #include <pthread.h> // linux only right now
++  #include <sys/ioctl.h>
++  #include <sys/utsname.h>
++#else // _WIN32
++  #include <windows.h>
+ CONSOLE_SCREEN_BUFFER_INFO csbi;
+ #endif // _WIN32
+ 
+@@ -59,22 +59,22 @@
+ #endif
+ 
+ #ifndef PKGPATH
+-	#ifdef __APPLE__
+-		#define PKGPATH "/usr/local/bin/"
+-	#else
+-		#define PKGPATH "/usr/bin/"
+-	#endif
++  #ifdef __APPLE__
++    #define PKGPATH "/usr/local/bin/"
++  #else
++    #define PKGPATH "/usr/bin/"
++  #endif
+ #endif
+ 
+ #ifdef __APPLE__
+ // buffers where data fetched from sysctl are stored
+-	#define CPUBUFFERLEN 128
++  #define CPUBUFFERLEN 128
+ 
+ char cpu_buffer[CPUBUFFERLEN];
+ size_t cpu_buffer_len = CPUBUFFERLEN;
+ 
+ // Installed RAM
+-int64_t mem_buffer		= 0;
++int64_t mem_buffer    = 0;
+ size_t mem_buffer_len = sizeof(mem_buffer);
+ 
+ // uptime
+@@ -83,693 +83,693 @@
+ #endif // __APPLE__
+ 
+ struct package_manager {
+-	char* command_path;
+-	char* command_string; // command to get number of packages installed
+-	char* pkgman_name;		// name of the package manager
++  char* command_path;
++  char* command_string; // command to get number of packages installed
++  char* pkgman_name;    // name of the package manager
+ };
+ 
+ // truncates the given string
+ void truncate_str(char* string, int target_width) {
+-	char arr[target_width];
+-	for (int i = 0; i < target_width; i++) arr[i] = string[i];
+-	string = arr;
++  char arr[target_width];
++  for (int i = 0; i < target_width; i++) arr[i] = string[i];
++  string = arr;
+ }
+ 
+ // remove square brackets (for gpu names)
+ void remove_brackets(char* str) {
+-	int i = 0, j = 0;
+-	while (i < (int)strlen(str))
+-		if (str[i] == '[' || str[i] == ']')
+-			for (j = i; j < (int)strlen(str); j++) str[j] = str[j + 1];
+-		else
+-			i++;
++  int i = 0, j = 0;
++  while (i < (int)strlen(str))
++    if (str[i] == '[' || str[i] == ']')
++      for (j = i; j < (int)strlen(str); j++) str[j] = str[j + 1];
++    else
++      i++;
+ }
+ 
+ void get_twidth(struct info* user_info) {
+-	LOG_I("getting terminal width");
+-	// get terminal width used to truncate long names
++  LOG_I("getting terminal width");
++  // get terminal width used to truncate long names
+ #ifndef _WIN32
+-	ioctl(STDOUT_FILENO, TIOCGWINSZ, &user_info->win);
+-	user_info->target_width = user_info->win.ws_col - 30;
+-	LOG_V(user_info->target_width);
+-#else	 // _WIN32
+-	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+-	user_info->ws_col	 = csbi.srWindow.Right - csbi.srWindow.Left - 29;
+-	user_info->ws_rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+-	LOG_V(user_info->ws_col);
+-	LOG_V(user_info->ws_rows);
++  ioctl(STDOUT_FILENO, TIOCGWINSZ, &user_info->win);
++  user_info->target_width = user_info->win.ws_col - 30;
++  LOG_V(user_info->target_width);
++#else  // _WIN32
++  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
++  user_info->ws_col  = csbi.srWindow.Right - csbi.srWindow.Left - 29;
++  user_info->ws_rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
++  LOG_V(user_info->ws_col);
++  LOG_V(user_info->ws_rows);
+ #endif // _WIN32
+ }
+ 
+ void get_sys(struct info* user_info) {
+-	LOG_I("getting sys_var struct");
++  LOG_I("getting sys_var struct");
+ #ifndef _WIN32
+-	uname(&user_info->sys_var);
++  uname(&user_info->sys_var);
+ #endif // _WIN32
+ #ifndef __APPLE__
+-	#ifndef __BSD__
+-		#ifndef _WIN32
+-	sysinfo(&user_info->sys);
+-		#else
+-	GetSystemInfo(&user_info->sys);
+-		#endif
+-	#endif
++  #ifndef __BSD__
++    #ifndef _WIN32
++  sysinfo(&user_info->sys);
++    #else
++  GetSystemInfo(&user_info->sys);
++    #endif
++  #endif
+ #endif
+ }
+ 
+ // tries to get cpu name
+ void* get_cpu(void* argp) {
+-	if (!((struct thread_varg*)argp)->thread_flags[0]) return 0;
+-	char* buffer					 = ((struct thread_varg*)argp)->buffer;
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
+-	FILE* cpuinfo					 = ((struct thread_varg*)argp)->cpuinfo;
+-	LOG_I("getting cpu name");
+-	if (cpuinfo) {
+-		while (fgets(buffer, BUFFER_SIZE, cpuinfo)) {
++  if (!((struct thread_varg*)argp)->thread_flags[0]) return 0;
++  char* buffer           = ((struct thread_varg*)argp)->buffer;
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
++  FILE* cpuinfo          = ((struct thread_varg*)argp)->cpuinfo;
++  LOG_I("getting cpu name");
++  if (cpuinfo) {
++    while (fgets(buffer, BUFFER_SIZE, cpuinfo)) {
+ #ifdef __BSD__
+-			if (sscanf(buffer, "hw.model"
+-	#ifdef __FREEBSD__
+-												 ": "
+-	#elif defined(__OPENBSD__)
+-												 "="
+-	#endif
+-												 "%[^\n]",
+-								 user_info->cpu_model))
+-				break;
++      if (sscanf(buffer, "hw.model"
++  #ifdef __FREEBSD__
++                         ": "
++  #elif defined(__OPENBSD__)
++                         "="
++  #endif
++                         "%[^\n]",
++                 user_info->cpu_model))
++        break;
+ #else
+-			if (sscanf(buffer, "model name    : %[^\n]", user_info->cpu_model)) break;
++      if (sscanf(buffer, "model name    : %[^\n]", user_info->cpu_model)) break;
+ #endif // __BSD__
+-		}
+-	}
+-	if (strlen(user_info->cpu_model) == 0) {
+-		LOG_E("failed to get cpu name");
+-		rewind(cpuinfo);
+-		char cores[4] = "";
+-		while (fgets(buffer, BUFFER_SIZE, cpuinfo)) // get the last core number
+-			sscanf(buffer, "processor%*[    |	]: %[^\n]", cores);
+-		cores[strlen(cores) - 1] += 1; // should be a number
+-		sprintf(user_info->cpu_model, "%s Cores", cores);
+-	}
+-	LOG_V(user_info->cpu_model);
+-	return 0;
++    }
++  }
++  if (strlen(user_info->cpu_model) == 0) {
++    LOG_E("failed to get cpu name");
++    rewind(cpuinfo);
++    char cores[4] = "";
++    while (fgets(buffer, BUFFER_SIZE, cpuinfo)) // get the last core number
++      sscanf(buffer, "processor%*[    |	]: %[^\n]", cores);
++    cores[strlen(cores) - 1] += 1; // should be a number
++    sprintf(user_info->cpu_model, "%s Cores", cores);
++  }
++  LOG_V(user_info->cpu_model);
++  return 0;
+ }
+ 
+ // tries to get memory usage
+ void* get_ram(void* argp) {
+-	if (!((struct thread_varg*)argp)->thread_flags[1]) return 0;
+-	LOG_I("getting ram");
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
++  if (!((struct thread_varg*)argp)->thread_flags[1]) return 0;
++  LOG_I("getting ram");
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
+ #ifndef __APPLE__
+-	#ifdef _WIN32
+-	FILE* mem_used_fp			 = popen("wmic os get freevirtualmemory", "r");			 // free memory
+-	FILE* mem_total_fp		 = popen("wmic os get totalvirtualmemorysize", "r"); // total memory
+-	char mem_used_ch[2137] = {0}, mem_total_ch[2137] = {0};
+-
+-	while (fgets(mem_total_ch, sizeof(mem_total_ch), mem_total_fp) != NULL) {
+-		if (strstr(mem_total_ch, "TotalVirtualMemorySize") != 0)
+-			continue;
+-		else if (strstr(mem_total_ch, "  ") == 0)
+-			continue;
+-		else
+-			user_info->ram_total = atoi(mem_total_ch) / 1024;
+-	}
+-	LOG_V(user_info->ram_total);
+-	while (fgets(mem_used_ch, sizeof(mem_used_ch), mem_used_fp) != NULL) {
+-		if (strstr(mem_used_ch, "FreeVirtualMemory") != 0)
+-			continue;
+-		else if (strstr(mem_used_ch, "  ") == 0)
+-			continue;
+-		else
+-			user_info->ram_used = user_info->ram_total - (atoi(mem_used_ch) / 1024);
+-	}
+-	LOG_V(user_info->ram_used);
+-	pclose(mem_used_fp);
+-	pclose(mem_total_fp);
+-	#else // if not _WIN32
+-	char* buffer = ((struct thread_varg*)argp)->buffer;
+-	FILE* meminfo;
+-
+-		#ifdef __BSD__
+-			#ifndef __OPENBSD__
+-	meminfo = popen("LANG=EN_us freecolor -om 2> /dev/null", "r"); // free alternative for freebsd
+-			#else
+-	meminfo = popen("LANG=EN_us vmstat 2> /dev/null | grep -v 'procs' | grep -v 'r' | awk '{print $3 "
+-									"\" / \" $4}'",
+-									"r"); // free alternative for openbsd
+-			#endif
+-		#else
+-	// getting memory info from /proc/meminfo: https://github.com/KittyKatt/screenFetch/issues/386#issuecomment-249312716
+-	meminfo = fopen("/proc/meminfo",
+-									"r"); // popen("LANG=EN_us free -m 2> /dev/null", "r"); // get ram info with free
+-		#endif
+-	// brackets are here to restrict the access to this int variables, which are temporary
+-	{
+-		#ifndef __OPENBSD__
+-		int memtotal = 0, shmem = 0, memfree = 0, buffers = 0, cached = 0, sreclaimable = 0;
+-		#endif
+-		while (fgets(buffer, BUFFER_SIZE, meminfo)) {
+-		#ifndef __OPENBSD__
+-			sscanf(buffer, "MemTotal:       %d", &memtotal);
+-			sscanf(buffer, "Shmem:             %d", &shmem);
+-			sscanf(buffer, "MemFree:        %d", &memfree);
+-			sscanf(buffer, "Buffers:          %d", &buffers);
+-			sscanf(buffer, "Cached:          %d", &cached);
+-			sscanf(buffer, "SReclaimable:     %d", &sreclaimable);
+-		#else
+-			sscanf(buffer, "%dM / %dM", &user_info->ram_used, &user_info->ram_total);
+-		#endif
+-		}
+-		#ifndef __OPENBSD__
+-		user_info->ram_total = memtotal / 1024;
+-		user_info->ram_used = ((memtotal + shmem) - (memfree + buffers + cached + sreclaimable)) / 1024;
+-		#endif
+-		LOG_V(user_info->ram_total);
+-		LOG_V(user_info->ram_used);
+-	}
++  #ifdef _WIN32
++  FILE* mem_used_fp      = popen("wmic os get freevirtualmemory", "r");      // free memory
++  FILE* mem_total_fp     = popen("wmic os get totalvirtualmemorysize", "r"); // total memory
++  char mem_used_ch[2137] = {0}, mem_total_ch[2137] = {0};
++
++  while (fgets(mem_total_ch, sizeof(mem_total_ch), mem_total_fp) != NULL) {
++    if (strstr(mem_total_ch, "TotalVirtualMemorySize") != 0)
++      continue;
++    else if (strstr(mem_total_ch, "  ") == 0)
++      continue;
++    else
++      user_info->ram_total = atoi(mem_total_ch) / 1024;
++  }
++  LOG_V(user_info->ram_total);
++  while (fgets(mem_used_ch, sizeof(mem_used_ch), mem_used_fp) != NULL) {
++    if (strstr(mem_used_ch, "FreeVirtualMemory") != 0)
++      continue;
++    else if (strstr(mem_used_ch, "  ") == 0)
++      continue;
++    else
++      user_info->ram_used = user_info->ram_total - (atoi(mem_used_ch) / 1024);
++  }
++  LOG_V(user_info->ram_used);
++  pclose(mem_used_fp);
++  pclose(mem_total_fp);
++  #else // if not _WIN32
++  char* buffer = ((struct thread_varg*)argp)->buffer;
++  FILE* meminfo;
++
++    #ifdef __BSD__
++      #ifndef __OPENBSD__
++  meminfo = popen("LANG=EN_us freecolor -om 2> /dev/null", "r"); // free alternative for freebsd
++      #else
++  meminfo = popen("LANG=EN_us vmstat 2> /dev/null | grep -v 'procs' | grep -v 'r' | awk '{print $3 "
++                  "\" / \" $4}'",
++                  "r"); // free alternative for openbsd
++      #endif
++    #else
++  // getting memory info from /proc/meminfo: https://github.com/KittyKatt/screenFetch/issues/386#issuecomment-249312716
++  meminfo = fopen("/proc/meminfo",
++                  "r"); // popen("LANG=EN_us free -m 2> /dev/null", "r"); // get ram info with free
++    #endif
++  // brackets are here to restrict the access to this int variables, which are temporary
++  {
++    #ifndef __OPENBSD__
++    int memtotal = 0, shmem = 0, memfree = 0, buffers = 0, cached = 0, sreclaimable = 0;
++    #endif
++    while (fgets(buffer, BUFFER_SIZE, meminfo)) {
++    #ifndef __OPENBSD__
++      sscanf(buffer, "MemTotal:       %d", &memtotal);
++      sscanf(buffer, "Shmem:             %d", &shmem);
++      sscanf(buffer, "MemFree:        %d", &memfree);
++      sscanf(buffer, "Buffers:          %d", &buffers);
++      sscanf(buffer, "Cached:          %d", &cached);
++      sscanf(buffer, "SReclaimable:     %d", &sreclaimable);
++    #else
++      sscanf(buffer, "%dM / %dM", &user_info->ram_used, &user_info->ram_total);
++    #endif
++    }
++    #ifndef __OPENBSD__
++    user_info->ram_total = memtotal / 1024;
++    user_info->ram_used = ((memtotal + shmem) - (memfree + buffers + cached + sreclaimable)) / 1024;
++    #endif
++    LOG_V(user_info->ram_total);
++    LOG_V(user_info->ram_used);
++  }
+ 
+-	fclose(meminfo);
+-	#endif
++  fclose(meminfo);
++  #endif
+ #else // if __APPLE__
+-	// Used
+-	FILE *mem_wired_fp, *mem_active_fp, *mem_compressed_fp;
+-	mem_wired_fp			= popen("vm_stat | awk '/wired/ { printf $4 }' | cut -d '.' -f 1", "r");
+-	mem_active_fp			= popen("vm_stat | awk '/active/ { printf $3 }' | cut -d '.' -f 1", "r");
+-	mem_compressed_fp = popen("vm_stat | awk '/occupied/ { printf $5 }' | cut -d '.' -f 1", "r");
+-	char mem_wired_ch[2137], mem_active_ch[2137], mem_compressed_ch[2137];
+-	while (fgets(mem_wired_ch, sizeof(mem_wired_ch), mem_wired_fp) != NULL)
+-		while (fgets(mem_active_ch, sizeof(mem_active_ch), mem_active_fp) != NULL)
+-			while (fgets(mem_compressed_ch, sizeof(mem_compressed_ch), mem_compressed_fp) != NULL)
+-				;
+-
+-	pclose(mem_wired_fp);
+-	pclose(mem_active_fp);
+-	pclose(mem_compressed_fp);
+-
+-	int mem_wired			 = atoi(mem_wired_ch);
+-	int mem_active		 = atoi(mem_active_ch);
+-	int mem_compressed = atoi(mem_compressed_ch);
+-
+-	// Total
+-	sysctlbyname("hw.memsize", &mem_buffer, &mem_buffer_len, NULL, 0);
+-	user_info->ram_used	 = ((mem_wired + mem_active + mem_compressed) * 4 / 1024);
+-	user_info->ram_total = mem_buffer / 1024 / 1024;
+-	LOG_V(user_info->ram_total);
+-	LOG_V(user_info->ram_used);
++  // Used
++  FILE *mem_wired_fp, *mem_active_fp, *mem_compressed_fp;
++  mem_wired_fp      = popen("vm_stat | awk '/wired/ { printf $4 }' | cut -d '.' -f 1", "r");
++  mem_active_fp     = popen("vm_stat | awk '/active/ { printf $3 }' | cut -d '.' -f 1", "r");
++  mem_compressed_fp = popen("vm_stat | awk '/occupied/ { printf $5 }' | cut -d '.' -f 1", "r");
++  char mem_wired_ch[2137], mem_active_ch[2137], mem_compressed_ch[2137];
++  while (fgets(mem_wired_ch, sizeof(mem_wired_ch), mem_wired_fp) != NULL)
++    while (fgets(mem_active_ch, sizeof(mem_active_ch), mem_active_fp) != NULL)
++      while (fgets(mem_compressed_ch, sizeof(mem_compressed_ch), mem_compressed_fp) != NULL)
++        ;
++
++  pclose(mem_wired_fp);
++  pclose(mem_active_fp);
++  pclose(mem_compressed_fp);
++
++  int mem_wired      = atoi(mem_wired_ch);
++  int mem_active     = atoi(mem_active_ch);
++  int mem_compressed = atoi(mem_compressed_ch);
++
++  // Total
++  sysctlbyname("hw.memsize", &mem_buffer, &mem_buffer_len, NULL, 0);
++  user_info->ram_used  = ((mem_wired + mem_active + mem_compressed) * 4 / 1024);
++  user_info->ram_total = mem_buffer / 1024 / 1024;
++  LOG_V(user_info->ram_total);
++  LOG_V(user_info->ram_used);
+ #endif
+-	return 0;
++  return 0;
+ }
+ 
+ // tries to get installed gpu(s)
+ void* get_gpu(void* argp) {
+-	if (!((struct thread_varg*)argp)->thread_flags[2]) return 0;
+-	char* buffer					 = ((struct thread_varg*)argp)->buffer;
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
+-	int gpuc							 = 0; // gpu counter
++  if (!((struct thread_varg*)argp)->thread_flags[2]) return 0;
++  LOG_I("getting gpu(s)");
++  char* buffer           = ((struct thread_varg*)argp)->buffer;
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
++  int gpuc               = 0; // gpu counter
+ #ifndef _WIN32
+-	setenv("LANG", "en_US", 1); // force language to english
++  setenv("LANG", "en_US", 1); // force language to english
+ #endif
+-	FILE* gpu;
++  FILE* gpu;
+ #ifndef _WIN32
+-	LOG_I("getting gpus with lshw");
+-	gpu = popen("lshw -class display 2> /dev/null", "r");
++  LOG_I("getting gpus with lshw");
++  gpu = popen("lshw -class display 2> /dev/null", "r");
+ 
+-	// add all gpus to the array gpu_model
+-	while (fgets(buffer, BUFFER_SIZE, gpu))
+-		if (sscanf(buffer, "    product: %[^\n]", user_info->gpu_model[gpuc])) gpuc++;
++  // add all gpus to the array gpu_model
++  while (fgets(buffer, BUFFER_SIZE, gpu))
++    if (sscanf(buffer, "    product: %[^\n]", user_info->gpu_model[gpuc])) gpuc++;
+ #endif
+ 
+-	if (strlen(user_info->gpu_model[0]) < 2) {
+-		// get gpus with lspci command
+-		if (strcmp(user_info->os_name, "android") != 0) {
++  if (strlen(user_info->gpu_model[0]) < 2) {
++    // get gpus with lspci command
++    if (strcmp(user_info->os_name, "android") != 0) {
+ #ifndef __APPLE__
+-	#ifdef _WIN32
+-			gpu = popen("wmic PATH Win32_VideoController GET Name", "r");
+-	#else
+-			gpu = popen("lspci -mm 2> /dev/null | grep \"VGA\" | awk -F '\"' '{print $4 $5 $6}'", "r");
+-	#endif
++  #ifdef _WIN32
++      gpu = popen("wmic PATH Win32_VideoController GET Name", "r");
++  #else
++      gpu = popen("lspci -mm 2> /dev/null | grep \"VGA\" | awk -F '\"' '{print $4 $5 $6}'", "r");
++  #endif
+ #else
+-			gpu = popen(
+-					"system_profiler SPDisplaysDataType | awk -F ': ' '/Chipset Model: /{ print $2 }'", "r");
++      gpu = popen(
++          "system_profiler SPDisplaysDataType | awk -F ': ' '/Chipset Model: /{ print $2 }'", "r");
+ #endif
+-		} else
+-			gpu = popen("getprop ro.hardware.vulkan 2> /dev/null", "r"); // for android
+-	}
+-
+-	// get all the gpus
+-	while (fgets(buffer, BUFFER_SIZE, gpu)) {
+-		// windows
+-		if (strstr(buffer, "Name") || (strlen(buffer) == 2))
+-			continue;
+-		else if (sscanf(buffer, "%[^\n]", user_info->gpu_model[gpuc]))
+-			gpuc++;
+-	}
+-	fclose(gpu);
+-
+-	// format gpu names
+-	for (int i = 0; i < gpuc; i++) {
+-		remove_brackets(user_info->gpu_model[i]);
+-		truncate_str(user_info->gpu_model[i], user_info->target_width);
+-		LOG_V(user_info->gpu_model[i]);
+-	}
+-	return 0;
++    } else
++      gpu = popen("getprop ro.hardware.vulkan 2> /dev/null", "r"); // for android
++  }
++
++  // get all the gpus
++  while (fgets(buffer, BUFFER_SIZE, gpu)) {
++    // windows
++    if (strstr(buffer, "Name") || (strlen(buffer) == 2))
++      continue;
++    else if (sscanf(buffer, "%[^\n]", user_info->gpu_model[gpuc]))
++      gpuc++;
++  }
++  fclose(gpu);
++
++  // format gpu names
++  for (int i = 0; i < gpuc; i++) {
++    remove_brackets(user_info->gpu_model[i]);
++    truncate_str(user_info->gpu_model[i], user_info->target_width);
++    LOG_V(user_info->gpu_model[i]);
++  }
++  return 0;
+ }
+ 
+ // tries to get screen resolution
+ #ifndef _WIN32
+ void* get_res(void* argp) {
+-	if (!((struct thread_varg*)argp)->thread_flags[3]) return 0;
+-	LOG_I("getting resolution");
+-	char* buffer					 = ((struct thread_varg*)argp)->buffer;
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
+-	FILE* resolution			 = popen("xwininfo -root 2> /dev/null | grep -E 'Width|Height'", "r");
+-	while (fgets(buffer, BUFFER_SIZE, resolution)) {
+-		sscanf(buffer, "  Width: %d", &user_info->screen_width);
+-		sscanf(buffer, "  Height: %d", &user_info->screen_height);
+-	}
+-	LOG_V(user_info->screen_width);
+-	LOG_V(user_info->screen_height);
++  if (!((struct thread_varg*)argp)->thread_flags[3]) return 0;
++  LOG_I("getting resolution");
++  char* buffer           = ((struct thread_varg*)argp)->buffer;
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
++  FILE* resolution       = popen("xwininfo -root 2> /dev/null | grep -E 'Width|Height'", "r");
++  while (fgets(buffer, BUFFER_SIZE, resolution)) {
++    sscanf(buffer, "  Width: %d", &user_info->screen_width);
++    sscanf(buffer, "  Height: %d", &user_info->screen_height);
++  }
++  LOG_V(user_info->screen_width);
++  LOG_V(user_info->screen_height);
+ #else
+ void* get_res() {
+-	// TODO: get resolution on windows
++  // TODO: get resolution on windows
+ #endif
+-	return 0;
++  return 0;
+ }
+ 
+ // tries to get the installed package count and package managers name
+ void* get_pkg(void* argp) { // this is just a function that returns the total of installed packages
+-	if (!((struct thread_varg*)argp)->thread_flags[4]) return 0;
+-	LOG_I("getting pkgs");
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
+-	user_info->pkgs				 = 0;
++  if (!((struct thread_varg*)argp)->thread_flags[4]) return 0;
++  LOG_I("getting pkgs");
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
++  user_info->pkgs        = 0;
+ #ifndef __APPLE__
+-	#ifndef _WIN32
+-	// all supported package managers
+-	struct package_manager pkgmans[] = {
+-			{PKGPATH "apt", "apt list --installed 2> /dev/null | wc -l", "(apt)"},
+-			{PKGPATH "apk", "apk info 2> /dev/null | wc -l", "(apk)"},
+-			// {PKGPATH"dnf","dnf list installed 2> /dev/null | wc -l", "(dnf)"}, // according to https://stackoverflow.com/questions/48570019/advantages-of-dnf-vs-rpm-on-fedora, dnf and rpm return the same number of packages
+-			{PKGPATH "qlist", "qlist -I 2> /dev/null | wc -l", "(emerge)"},
+-			{PKGPATH "flatpak", "flatpak list 2> /dev/null | wc -l", "(flatpak)"},
+-			{PKGPATH "snap", "snap list 2> /dev/null | wc -l", "(snap)"},
+-			{PKGPATH "guix", "guix package --list-installed 2> /dev/null | wc -l", "(guix)"},
+-			{PKGPATH "nix-store", "nix-store -q --requisites /run/current-system/sw 2> /dev/null | wc -l", "(nix)"},
+-			{PKGPATH "pacman", "pacman -Qq 2> /dev/null | wc -l", "(pacman)"},
+-			{PKGPATH "pkg", "pkg info 2>/dev/null | wc -l", "(pkg)"},
+-			{PKGPATH "pkg_info", "pkg_info 2>/dev/null | wc -l | sed \"s/ //g\"", "(pkg)"},
+-			{PKGPATH "port", "port installed 2> /dev/null | tail -n +2 | wc -l", "(port)"},
+-			{PKGPATH "brew", "find $(brew --cellar 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}'", "(brew-cellar)"},
+-			{PKGPATH "brew", "find $(brew --caskroom 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}'", "(brew-cask)"},
+-			{PKGPATH "rpm", "rpm -qa --last 2> /dev/null | wc -l", "(rpm)"},
+-			{PKGPATH "xbps-query", "xbps-query -l 2> /dev/null | wc -l", "(xbps)"},
+-			{PKGPATH "zypper", "zypper -q se --installed-only 2> /dev/null | wc -l", "(zypper)"}};
+-	#endif
++  #ifndef _WIN32
++  // all supported package managers
++  struct package_manager pkgmans[] = {
++      {PKGPATH "apt", "apt list --installed 2> /dev/null | wc -l", "(apt)"},
++      {PKGPATH "apk", "apk info 2> /dev/null | wc -l", "(apk)"},
++      // {PKGPATH"dnf","dnf list installed 2> /dev/null | wc -l", "(dnf)"}, // according to https://stackoverflow.com/questions/48570019/advantages-of-dnf-vs-rpm-on-fedora, dnf and rpm return the same number of packages
++      {PKGPATH "qlist", "qlist -I 2> /dev/null | wc -l", "(emerge)"},
++      {PKGPATH "flatpak", "flatpak list 2> /dev/null | wc -l", "(flatpak)"},
++      {PKGPATH "snap", "snap list 2> /dev/null | wc -l", "(snap)"},
++      {PKGPATH "guix", "guix package --list-installed 2> /dev/null | wc -l", "(guix)"},
++      {PKGPATH "nix-store", "nix-store -q --requisites /run/current-system/sw 2> /dev/null | wc -l", "(nix)"},
++      {PKGPATH "pacman", "pacman -Qq 2> /dev/null | wc -l", "(pacman)"},
++      {PKGPATH "pkg", "pkg info 2>/dev/null | wc -l", "(pkg)"},
++      {PKGPATH "pkg_info", "pkg_info 2>/dev/null | wc -l | sed \"s/ //g\"", "(pkg)"},
++      {PKGPATH "port", "port installed 2> /dev/null | tail -n +2 | wc -l", "(port)"},
++      {PKGPATH "brew", "find $(brew --cellar 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}'", "(brew-cellar)"},
++      {PKGPATH "brew", "find $(brew --caskroom 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}'", "(brew-cask)"},
++      {PKGPATH "rpm", "rpm -qa --last 2> /dev/null | wc -l", "(rpm)"},
++      {PKGPATH "xbps-query", "xbps-query -l 2> /dev/null | wc -l", "(xbps)"}};
++  #endif
+ #else
+-	struct package_manager pkgmans[] = {{"/usr/local/bin/brew", "find $(brew --cellar 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}' > /tmp/uwufetch_brew_tmp", "(brew-cellar)"},
+-																			{"/usr/local/bin/brew", "find $(brew --caskroom 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}' > /tmp/uwufetch_brew_tmp", "(brew-cask)"}};
++  struct package_manager pkgmans[] = {{"/usr/local/bin/brew", "find $(brew --cellar 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}' > /tmp/uwufetch_brew_tmp", "(brew-cellar)"},
++                                      {"/usr/local/bin/brew", "find $(brew --caskroom 2>/dev/stdout) -maxdepth 1 -type d 2> /dev/null | wc -l | awk '{print $1}' > /tmp/uwufetch_brew_tmp", "(brew-cask)"}};
+ #endif
+ #ifndef _WIN32
+-	const int pkgman_count = sizeof(pkgmans) / sizeof(pkgmans[0]); // number of package managers
+-	int comma_separator		 = 0;
+-	for (int i = 0; i < pkgman_count; i++) {
+-		struct package_manager* current = &pkgmans[i]; // pointer to current package manager
+-
+-		unsigned int pkg_count = 0;
+-		LOG_I("trying pkgman %d: %s", i, current->pkgman_name);
+-		LOG_V(current->command_path);
+-		if (access(current->command_path, F_OK) != -1) {
+-	#ifndef __APPLE__
+-			FILE* fp = popen(current->command_string, "r"); // trying current package manager
+-	#else
+-			system(current->command_string); // writes to a temporary file: for some reason popen() does not intercept the stdout, so i have to read from a temporary file
+-			FILE* fp = fopen("/tmp/uwufetch_brew_tmp", "r");
+-	#endif
+-			if (fscanf(fp, "%u", &pkg_count) == 3) continue;
+-
+-	#ifndef __APPLE__
+-			pclose(fp);
+-	#else
+-			// remove("/tmp/uwufetch_brew_tmp");
+-			fclose(fp);
+-	#endif
+-		}
+-	#ifdef __DEBUG__
+-		else
+-			LOG_W("pkgman %s executable not found!", current->pkgman_name);
+-	#endif
+-
+-		// adding a package manager with its package count to user_info->pkgman_name
+-		user_info->pkgs += pkg_count;
+-		if (pkg_count > 0) {
+-			if (comma_separator++) strcat(user_info->pkgman_name, ", ");
+-			char spkg_count[16];
+-			sprintf(spkg_count, "%u", pkg_count);
+-			strcat(user_info->pkgman_name, spkg_count);
+-			strcat(user_info->pkgman_name, " ");
+-			strcat(user_info->pkgman_name, current->pkgman_name);
+-			LOG_V(user_info->pkgman_name);
+-		}
+-	}
+-#else	 // _WIN32
+-	// chocolatey for windows
+-	FILE* fp = popen("choco list -l --no-color 2> nul", "r");
+-	unsigned int pkg_count;
+-	char buffer[7562] = {0};
+-	while (fgets(buffer, BUFFER_SIZE, fp)) {
+-		sscanf(buffer, "%u packages installed.", &pkg_count);
+-	}
+-	if (fp) pclose(fp);
+-
+-	user_info->pkgs = pkg_count;
+-	char spkg_count[16];
+-	sprintf(spkg_count, "%u", pkg_count);
+-	strcat(user_info->pkgman_name, spkg_count);
+-	strcat(user_info->pkgman_name, " ");
+-	strcat(user_info->pkgman_name, "(chocolatey)");
+-	LOG_V(user_info->pkgman_name);
++  const int pkgman_count = sizeof(pkgmans) / sizeof(pkgmans[0]); // number of package managers
++  int comma_separator    = 0;
++  for (int i = 0; i < pkgman_count; i++) {
++    struct package_manager* current = &pkgmans[i]; // pointer to current package manager
++
++    unsigned int pkg_count = 0;
++    LOG_I("trying pkgman %d: %s", i, current->pkgman_name);
++    LOG_V(current->command_path);
++    if (access(current->command_path, F_OK) != -1) {
++  #ifndef __APPLE__
++      FILE* fp = popen(current->command_string, "r"); // trying current package manager
++  #else
++      system(current->command_string); // writes to a temporary file: for some reason popen() does not intercept the stdout, so i have to read from a temporary file
++      FILE* fp = fopen("/tmp/uwufetch_brew_tmp", "r");
++  #endif
++      if (fscanf(fp, "%u", &pkg_count) == 3) continue;
++
++  #ifndef __APPLE__
++      pclose(fp);
++  #else
++      // remove("/tmp/uwufetch_brew_tmp");
++      fclose(fp);
++  #endif
++    }
++  #ifdef __DEBUG__
++    else
++      LOG_W("pkgman %s executable not found!", current->pkgman_name);
++  #endif
++
++    // adding a package manager with its package count to user_info->pkgman_name
++    user_info->pkgs += pkg_count;
++    if (pkg_count > 0) {
++      if (comma_separator++) strcat(user_info->pkgman_name, ", ");
++      char spkg_count[16];
++      sprintf(spkg_count, "%u", pkg_count);
++      strcat(user_info->pkgman_name, spkg_count);
++      strcat(user_info->pkgman_name, " ");
++      strcat(user_info->pkgman_name, current->pkgman_name);
++      LOG_V(user_info->pkgman_name);
++    }
++  }
++#else  // _WIN32
++  // chocolatey for windows
++  FILE* fp = popen("choco list -l --no-color 2> nul", "r");
++  unsigned int pkg_count;
++  char buffer[7562] = {0};
++  while (fgets(buffer, BUFFER_SIZE, fp)) {
++    sscanf(buffer, "%u packages installed.", &pkg_count);
++  }
++  if (fp) pclose(fp);
++
++  user_info->pkgs = pkg_count;
++  char spkg_count[16];
++  sprintf(spkg_count, "%u", pkg_count);
++  strcat(user_info->pkgman_name, spkg_count);
++  strcat(user_info->pkgman_name, " ");
++  strcat(user_info->pkgman_name, "(chocolatey)");
++  LOG_V(user_info->pkgman_name);
+ #endif // _WIN32
+-	return 0;
++  return 0;
+ }
+ 
+ void* get_model(void* argp) {
+-	if (!((struct thread_varg*)argp)->thread_flags[5]) return 0;
+-	LOG_I("getting model");
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
+-	char* buffer					 = ((struct thread_varg*)argp)->buffer;
+-	FILE* model_fp;
++  if (!((struct thread_varg*)argp)->thread_flags[5]) return 0;
++  LOG_I("getting model");
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
++  char* buffer           = ((struct thread_varg*)argp)->buffer;
++  FILE* model_fp;
+ #ifdef _WIN32
+-	// all the previous files obviously did not exist on windows
+-	model_fp = popen("wmic computersystem get model", "r");
+-	while (fgets(buffer, BUFFER_SIZE, model_fp)) {
+-		if (strstr(buffer, "Model") != 0)
+-			continue;
+-		else {
+-			sprintf(user_info->model, "%s", buffer);
+-			user_info->model[strlen(user_info->model) - 2] = '\0';
+-			break;
+-		}
+-	}
++  // all the previous files obviously did not exist on windows
++  model_fp = popen("wmic computersystem get model", "r");
++  while (fgets(buffer, BUFFER_SIZE, model_fp)) {
++    if (strstr(buffer, "Model") != 0)
++      continue;
++    else {
++      sprintf(user_info->model, "%s", buffer);
++      user_info->model[strlen(user_info->model) - 2] = '\0';
++      break;
++    }
++  }
+ #elif defined(__BSD__) || defined(__APPLE__)
+-	#if defined(__BSD__) && !defined(__OPENBSD__)
+-		#define HOSTCTL "hw.hv_vendor"
+-	#elif defined(__APPLE__)
+-		#define HOSTCTL "hw.model"
+-	#elif defined(__OPENBSD__)
+-		#define HOSTCTL "hw.product"
+-	#endif
+-	model_fp = popen("sysctl " HOSTCTL, "r");
+-	while (fgets(buffer, BUFFER_SIZE, model_fp))
+-		if (sscanf(buffer,
+-							 HOSTCTL
+-	#ifdef __OPENBSD__
+-							 "="
+-	#else
+-							 ": "
+-	#endif
+-							 "%[^\n]",
+-							 user_info->model))
+-			break;
+-	pclose(model_fp);
++  #if defined(__BSD__) && !defined(__OPENBSD__)
++    #define HOSTCTL "hw.hv_vendor"
++  #elif defined(__APPLE__)
++    #define HOSTCTL "hw.model"
++  #elif defined(__OPENBSD__)
++    #define HOSTCTL "hw.product"
++  #endif
++  model_fp = popen("sysctl " HOSTCTL, "r");
++  while (fgets(buffer, BUFFER_SIZE, model_fp))
++    if (sscanf(buffer,
++               HOSTCTL
++  #ifdef __OPENBSD__
++               "="
++  #else
++               ": "
++  #endif
++               "%[^\n]",
++               user_info->model))
++      break;
++  pclose(model_fp);
+ #else
+-	char model_filename[4][256] = {
+-			"/sys/devices/virtual/dmi/id/product_version",
+-			"/sys/devices/virtual/dmi/id/product_name",
+-			"/sys/devices/virtual/dmi/id/board_name",
+-			"getprop ro.product.vendor.marketname 2>/dev/null",
+-	};
+-
+-	char tmp_model[4][BUFFER_SIZE] = {0}; // temporary variable to store the contents of all 3 files
+-	int longest_model = 0, best_len = 0, currentlen = 0;
+-	FILE* (*tocall[])(const char*, const char*) = {fopen, fopen, fopen, popen}; // open a process or a file, depending on the model_filename
+-	int (*tocall_close[])(FILE*)								= {fclose, fclose, fclose, pclose};
+-	for (int i = 0; i < 4; i++) {
+-		// read file
+-		model_fp = tocall[i](model_filename[i], "r");
+-		if (model_fp) {
+-			fgets(tmp_model[i], BUFFER_SIZE, model_fp);
+-			tmp_model[i][strlen(tmp_model[i]) - 1] = '\0';
+-			tocall_close[i](model_fp);
+-		}
+-		LOG_V(tmp_model[i]);
+-		// choose the file with the longest name
+-		currentlen = strlen(tmp_model[i]);
+-		if (currentlen > best_len) {
+-			best_len			= currentlen;
+-			longest_model = i;
+-		}
+-	}
+-	if (strlen(tmp_model[longest_model]) == 0) {
+-		model_fp = popen("lscpu 2>/dev/null", "r");
+-		while (fgets(buffer, BUFFER_SIZE, model_fp))
+-			if (sscanf(buffer, "Model name:%*[           |		]%[^\n]", tmp_model[longest_model]) == 1) break;
+-		pclose(model_fp);
+-		LOG_V(tmp_model[longest_model]);
+-		if (strcmp(tmp_model[longest_model], "Icestorm") == 0) sprintf(tmp_model[longest_model], "Apple MacBook Air (M1)");
+-	}
+-	sprintf(user_info->model, "%s", tmp_model[longest_model]);
+-	LOG_V(user_info->model);
++  char model_filename[4][256] = {
++      "/sys/devices/virtual/dmi/id/product_version",
++      "/sys/devices/virtual/dmi/id/product_name",
++      "/sys/devices/virtual/dmi/id/board_name",
++      "getprop ro.product.vendor.marketname 2>/dev/null",
++  };
++
++  char tmp_model[4][BUFFER_SIZE] = {0}; // temporary variable to store the contents of all 3 files
++  int longest_model = 0, best_len = 0, currentlen = 0;
++  FILE* (*tocall[])(const char*, const char*) = {fopen, fopen, fopen, popen}; // open a process or a file, depending on the model_filename
++  int (*tocall_close[])(FILE*)                = {fclose, fclose, fclose, pclose};
++  for (int i = 0; i < 4; i++) {
++    // read file
++    model_fp = tocall[i](model_filename[i], "r");
++    if (model_fp) {
++      fgets(tmp_model[i], BUFFER_SIZE, model_fp);
++      tmp_model[i][strlen(tmp_model[i]) - 1] = '\0';
++      tocall_close[i](model_fp);
++    }
++    LOG_V(tmp_model[i]);
++    // choose the file with the longest name
++    currentlen = strlen(tmp_model[i]);
++    if (currentlen > best_len) {
++      best_len      = currentlen;
++      longest_model = i;
++    }
++  }
++  if (strlen(tmp_model[longest_model]) == 0) {
++    model_fp = popen("lscpu 2>/dev/null", "r");
++    while (fgets(buffer, BUFFER_SIZE, model_fp))
++      if (sscanf(buffer, "Model name:%*[           |		]%[^\n]", tmp_model[longest_model]) == 1) break;
++    pclose(model_fp);
++    LOG_V(tmp_model[longest_model]);
++    if (strcmp(tmp_model[longest_model], "Icestorm") == 0) sprintf(tmp_model[longest_model], "Apple MacBook Air (M1)");
++  }
++  sprintf(user_info->model, "%s", tmp_model[longest_model]);
++  LOG_V(user_info->model);
+ #endif
+-	return 0;
++  return 0;
+ }
+ 
+ void* get_ker(void* argp) {
+-	if (!((struct thread_varg*)argp)->thread_flags[6]) return 0;
+-	LOG_I("getting kernel");
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
+-
+-#ifndef _WIN32
+-	truncate_str(user_info->sys_var.release, user_info->target_width);
+-	sprintf(user_info->kernel, "%s %s %s", user_info->sys_var.sysname, user_info->sys_var.release, user_info->sys_var.machine); // kernel name
+-	truncate_str(user_info->kernel, user_info->target_width);
+-	LOG_V(user_info->kernel);
+-#else	 // _WIN32
+-	// windows version
+-	FILE* kernel_fp = popen("wmic computersystem get systemtype", "r");
+-	char* buffer		= ((struct thread_varg*)argp)->buffer;
+-	while (fgets(buffer, BUFFER_SIZE, kernel_fp)) {
+-		if (strstr(buffer, "SystemType") != 0)
+-			continue;
+-		else {
+-			sprintf(user_info->kernel, "%s", buffer);
+-			user_info->kernel[strlen(user_info->kernel) - 2] = '\0';
+-			break;
+-		}
+-	}
+-	if (kernel_fp) pclose(kernel_fp);
++  if (!((struct thread_varg*)argp)->thread_flags[6]) return 0;
++  LOG_I("getting kernel");
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
++
++#ifndef _WIN32
++  truncate_str(user_info->sys_var.release, user_info->target_width);
++  sprintf(user_info->kernel, "%s %s %s", user_info->sys_var.sysname, user_info->sys_var.release, user_info->sys_var.machine); // kernel name
++  truncate_str(user_info->kernel, user_info->target_width);
++  LOG_V(user_info->kernel);
++#else  // _WIN32
++  // windows version
++  FILE* kernel_fp = popen("wmic computersystem get systemtype", "r");
++  char* buffer    = ((struct thread_varg*)argp)->buffer;
++  while (fgets(buffer, BUFFER_SIZE, kernel_fp)) {
++    if (strstr(buffer, "SystemType") != 0)
++      continue;
++    else {
++      sprintf(user_info->kernel, "%s", buffer);
++      user_info->kernel[strlen(user_info->kernel) - 2] = '\0';
++      break;
++    }
++  }
++  if (kernel_fp) pclose(kernel_fp);
+ #endif // _WIN32
+-	return 0;
++  return 0;
+ }
+ 
+ void* get_upt(void* argp) {
+-	LOG_V(((struct thread_varg*)argp)->thread_flags[7]);
+-	if (!((struct thread_varg*)argp)->thread_flags[7]) return 0;
+-	LOG_I("getting uptime");
+-	struct info* user_info = ((struct thread_varg*)argp)->user_info;
++  LOG_V(((struct thread_varg*)argp)->thread_flags[7]);
++  if (!((struct thread_varg*)argp)->thread_flags[7]) return 0;
++  LOG_I("getting uptime");
++  struct info* user_info = ((struct thread_varg*)argp)->user_info;
+ #ifdef __APPLE__
+-	int mib[2] = {CTL_KERN, KERN_BOOTTIME};
+-	sysctl(mib, 2, &time_buffer, &time_buffer_len, NULL, 0);
++  int mib[2] = {CTL_KERN, KERN_BOOTTIME};
++  sysctl(mib, 2, &time_buffer, &time_buffer_len, NULL, 0);
+ 
+-	time_t bsec = time_buffer.tv_sec;
+-	time_t csec = time(NULL);
++  time_t bsec = time_buffer.tv_sec;
++  time_t csec = time(NULL);
+ 
+-	user_info->uptime = difftime(csec, bsec);
++  user_info->uptime = difftime(csec, bsec);
+ #else
+-	#ifdef __BSD__
+-	// https://github.com/coreutils/coreutils/blob/master/src/uptime.c
+-	int boot_time					= 0;
+-	static int request[2] = {CTL_KERN, KERN_BOOTTIME};
+-	struct timeval result;
+-	size_t result_len = sizeof result;
+-
+-	if (sysctl(request, 2, &result, &result_len, NULL, 0) >= 0) boot_time = result.tv_sec;
+-	int time_now			= time(NULL);
+-	user_info->uptime = time_now - boot_time;
+-	#else
+-		#ifdef _WIN32
+-	user_info->uptime = GetTickCount() / 1000;
+-		#else	 // _WIN32
+-	user_info->uptime = user_info->sys.uptime;
+-		#endif // _WIN32
+-	#endif
++  #ifdef __BSD__
++  // https://github.com/coreutils/coreutils/blob/master/src/uptime.c
++  int boot_time         = 0;
++  static int request[2] = {CTL_KERN, KERN_BOOTTIME};
++  struct timeval result;
++  size_t result_len = sizeof result;
++
++  if (sysctl(request, 2, &result, &result_len, NULL, 0) >= 0) boot_time = result.tv_sec;
++  int time_now      = time(NULL);
++  user_info->uptime = time_now - boot_time;
++  #else
++    #ifdef _WIN32
++  user_info->uptime = GetTickCount() / 1000;
++    #else  // _WIN32
++  user_info->uptime = user_info->sys.uptime;
++    #endif // _WIN32
++  #endif
+ #endif
+-	LOG_V(user_info->uptime);
+-	return 0;
++  LOG_V(user_info->uptime);
++  return 0;
+ }
+ 
+ // Retrieves system information
+ void get_info(struct flags flags, struct info* user_info) {
+-	char buffer[BUFFER_SIZE]; // line buffer
+-	get_twidth(user_info);
+-	// os version, cpu and board info
++  char buffer[BUFFER_SIZE]; // line buffer
++  get_twidth(user_info);
++  // os version, cpu and board info
+ #ifdef __OPENBSD__
+-	FILE* os_release = popen("echo ID=openbsd", "r"); // os-release does not exist in OpenBSD
++  FILE* os_release = popen("echo ID=openbsd", "r"); // os-release does not exist in OpenBSD
+ #else
+-	FILE* os_release	= fopen("/etc/os-release", "r"); // os name file
++  FILE* os_release  = fopen("/etc/os-release", "r"); // os name file
+ #endif
+ #ifndef __BSD__
+-	FILE* cpuinfo = fopen("/proc/cpuinfo", "r"); // cpu name file for not-freebsd systems
++  FILE* cpuinfo = fopen("/proc/cpuinfo", "r"); // cpu name file for not-freebsd systems
+ #else
+-	FILE* cpuinfo			= popen("sysctl hw.model", "r"); // cpu name command for freebsd
++  FILE* cpuinfo     = popen("sysctl hw.model", "r"); // cpu name command for freebsd
+ #endif
+-	// trying to get some kind of information about the name of the computer (hopefully a product full name)
+-	if (os_release) { // get normal vars if os_release exists
+-		if (flags.os) {
+-			LOG_I("getting os name from /etc/os-release");
+-			while (fgets(buffer, BUFFER_SIZE, os_release) &&
+-						 !(sscanf(buffer, "\nID=\"%s\"", user_info->os_name) ||
+-							 sscanf(buffer, "\nID=%s", user_info->os_name)))
+-				;
+-			// sometimes for some reason sscanf reads the last '\"' too
+-			int os_name_len = strlen(user_info->os_name);
+-			if (user_info->os_name[os_name_len - 1] == '\"') {
+-				user_info->os_name[os_name_len - 1] = '\0';
+-			}
+-			// trying to detect amogos because in its os-release file ID value is just "debian", will be removed when amogos will have an os-release file with ID=amogos
+-			if (strcmp(user_info->os_name, "debian") == 0 ||
+-					strcmp(user_info->os_name, "raspbian") == 0) {
+-				DIR* amogos_plymouth = opendir("/usr/share/plymouth/themes/amogos");
+-				if (amogos_plymouth) {
+-					closedir(amogos_plymouth);
+-					sprintf(user_info->os_name, "amogos");
+-					LOG_V(user_info->os_name);
+-				}
+-			}
+-			LOG_V(user_info->os_name);
+-		}
+-	} else { // try for android vars, next for Apple var, or unknown system
+-					 // android
+-		DIR* system_app			 = opendir("/system/app/");
+-		DIR* system_priv_app = opendir("/system/priv-app/");
+-		DIR* library				 = opendir("/Library/");
+-		if (system_app && system_priv_app) {
+-			closedir(system_app);
+-			closedir(system_priv_app);
+-			if (flags.os) sprintf(user_info->os_name, "android");
+-			LOG_V(user_info->os_name);
+-			if (flags.user) {
+-				// username
+-				FILE* whoami = popen("whoami", "r");
+-				if (fscanf(whoami, "%s", user_info->user) == 3) {
+-				}
+-				LOG_V(user_info->user);
+-				pclose(whoami);
+-			}
+-		} else if (library) { // Apple
+-			closedir(library);
++  // trying to get some kind of information about the name of the computer (hopefully a product full name)
++  if (os_release) { // get normal vars if os_release exists
++    if (flags.os) {
++      LOG_I("getting os name from /etc/os-release");
++      while (fgets(buffer, BUFFER_SIZE, os_release) &&
++             !(sscanf(buffer, "\nID=\"%s\"", user_info->os_name) ||
++               sscanf(buffer, "\nID=%s", user_info->os_name)))
++        ;
++      // sometimes for some reason sscanf reads the last '\"' too
++      int os_name_len = strlen(user_info->os_name);
++      if (user_info->os_name[os_name_len - 1] == '\"') {
++        user_info->os_name[os_name_len - 1] = '\0';
++      }
++      // trying to detect amogos because in its os-release file ID value is just "debian", will be removed when amogos will have an os-release file with ID=amogos
++      if (strcmp(user_info->os_name, "debian") == 0 ||
++          strcmp(user_info->os_name, "raspbian") == 0) {
++        DIR* amogos_plymouth = opendir("/usr/share/plymouth/themes/amogos");
++        if (amogos_plymouth) {
++          closedir(amogos_plymouth);
++          sprintf(user_info->os_name, "amogos");
++          LOG_V(user_info->os_name);
++        }
++      }
++      LOG_V(user_info->os_name);
++    }
++  } else { // try for android vars, next for Apple var, or unknown system
++           // android
++    DIR* system_app      = opendir("/system/app/");
++    DIR* system_priv_app = opendir("/system/priv-app/");
++    DIR* library         = opendir("/Library/");
++    if (system_app && system_priv_app) {
++      closedir(system_app);
++      closedir(system_priv_app);
++      if (flags.os) sprintf(user_info->os_name, "android");
++      LOG_V(user_info->os_name);
++      if (flags.user) {
++        // username
++        FILE* whoami = popen("whoami", "r");
++        if (fscanf(whoami, "%s", user_info->user) == 3) {
++        }
++        LOG_V(user_info->user);
++        pclose(whoami);
++      }
++    } else if (library) { // Apple
++      closedir(library);
+ #ifdef __APPLE__
+-			if (flags.cpu) {
+-				sysctlbyname("machdep.cpu.brand_string", &cpu_buffer, &cpu_buffer_len, NULL,
+-										 0); // cpu name
+-				sprintf(user_info->cpu_model, "%s", cpu_buffer);
+-			}
+-			if (flags.os) {
+-	#ifndef __IPHONE__
+-				sprintf(user_info->os_name, "macos");
+-	#else
+-				sprintf(user_info->os_name, "ios");
+-	#endif
+-			}
+-#endif
+-		} else // if no option before is working, the system is unknown
+-			sprintf(user_info->os_name, "unknown");
+-	}
++      if (flags.cpu) {
++        sysctlbyname("machdep.cpu.brand_string", &cpu_buffer, &cpu_buffer_len, NULL,
++                     0); // cpu name
++        sprintf(user_info->cpu_model, "%s", cpu_buffer);
++      }
++      if (flags.os) {
++  #ifndef __IPHONE__
++        sprintf(user_info->os_name, "macos");
++  #else
++        sprintf(user_info->os_name, "ios");
++  #endif
++      }
++#endif
++    } else // if no option before is working, the system is unknown
++      sprintf(user_info->os_name, "unknown");
++  }
+ #ifndef __BSD__
+ #endif
+ #ifndef _WIN32
+-	// getting username and hostname
+-	if (flags.user) {
+-		LOG_I("getting username and hostname");
+-		gethostname(user_info->host, 256);
+-		LOG_V(user_info->host);
+-		char* tmp_user = getenv("USER");
+-		LOG_V(tmp_user);
+-		if (tmp_user == NULL)
+-			sprintf(user_info->user, "%s", "");
+-		else
+-			sprintf(user_info->user, "%s", tmp_user);
+-		LOG_V(user_info->user);
+-		if (os_release) fclose(os_release);
+-	}
+-	if (flags.shell) {
+-		LOG_I("getting shell");
+-		char* tmp_shell = getenv("SHELL"); // shell name
+-		LOG_V(tmp_shell);
+-		if (!tmp_shell)
+-			sprintf(user_info->shell, "%s", "");
+-		else
+-			sprintf(user_info->shell, "%s", tmp_shell);
+-	#ifdef __linux__
+-		if (strlen(user_info->shell) > 16) // android shell name was too long
+-			memmove(&user_info->shell, &user_info->shell[27], strlen(user_info->shell));
+-	#endif
+-		LOG_V(user_info->shell);
+-	}
+-#else	 // if _WIN32
+-	// cpu name
+-	if (flags.cpu) {
+-		cpuinfo = popen("wmic cpu get caption", "r");
+-		while (fgets(buffer, BUFFER_SIZE, cpuinfo)) {
+-			if (strstr(buffer, "Caption") != 0)
+-				continue;
+-			else {
+-				sprintf(user_info->cpu_model, "%s", buffer);
+-				user_info->cpu_model[strlen(user_info->cpu_model) - 2] = '\0';
+-				break;
+-			}
+-		}
+-	}
+-	// username
+-	if (flags.user) {
+-		FILE* user_host_fp = popen("wmic computersystem get username", "r");
+-		while (fgets(buffer, BUFFER_SIZE, user_host_fp)) {
+-			if (strstr(buffer, "UserName") != 0)
+-				continue;
+-			else {
+-				sscanf(buffer, "%[^\\]%s", user_info->host, user_info->user);
+-				memmove(user_info->user, user_info->user + 1, sizeof(user_info->user) - 1);
+-				break;
+-			}
+-		}
+-	}
+-	// powershell version
+-	if (flags.shell) {
+-		FILE* shell_fp = popen("powershell $PSVersionTable", "r");
+-		sprintf(user_info->shell, "PowerShell ");
+-		char tmp_shell[64];
+-		while (fgets(buffer, BUFFER_SIZE, shell_fp) &&
+-					 sscanf(buffer, "PSVersion                      %s", tmp_shell) == 0)
+-			;
+-		strcat(user_info->shell, tmp_shell);
+-	}
++  // getting username and hostname
++  if (flags.user) {
++    LOG_I("getting username and hostname");
++    gethostname(user_info->host, 256);
++    LOG_V(user_info->host);
++    char* tmp_user = getenv("USER");
++    LOG_V(tmp_user);
++    if (tmp_user == NULL)
++      sprintf(user_info->user, "%s", "");
++    else
++      sprintf(user_info->user, "%s", tmp_user);
++    LOG_V(user_info->user);
++    if (os_release) fclose(os_release);
++  }
++  if (flags.shell) {
++    LOG_I("getting shell");
++    char* tmp_shell = getenv("SHELL"); // shell name
++    LOG_V(tmp_shell);
++    if (!tmp_shell)
++      sprintf(user_info->shell, "%s", "");
++    else
++      snprintf(user_info->shell, sizeof user_info->shell, "%s", tmp_shell);
++  #ifdef __linux__
++    if (strlen(user_info->shell) > 16) // android shell name was too long
++      memmove(&user_info->shell, &user_info->shell[27], strlen(user_info->shell));
++  #endif
++    LOG_V(user_info->shell);
++  }
++#else  // if _WIN32
++  // cpu name
++  if (flags.cpu) {
++    cpuinfo = popen("wmic cpu get caption", "r");
++    while (fgets(buffer, BUFFER_SIZE, cpuinfo)) {
++      if (strstr(buffer, "Caption") != 0)
++        continue;
++      else {
++        sprintf(user_info->cpu_model, "%s", buffer);
++        user_info->cpu_model[strlen(user_info->cpu_model) - 2] = '\0';
++        break;
++      }
++    }
++  }
++  // username
++  if (flags.user) {
++    FILE* user_host_fp = popen("wmic computersystem get username", "r");
++    while (fgets(buffer, BUFFER_SIZE, user_host_fp)) {
++      if (strstr(buffer, "UserName") != 0)
++        continue;
++      else {
++        sscanf(buffer, "%[^\\]%s", user_info->host, user_info->user);
++        memmove(user_info->user, user_info->user + 1, sizeof(user_info->user) - 1);
++        break;
++      }
++    }
++  }
++  // powershell version
++  if (flags.shell) {
++    FILE* shell_fp = popen("powershell $PSVersionTable", "r");
++    sprintf(user_info->shell, "PowerShell ");
++    char tmp_shell[64];
++    while (fgets(buffer, BUFFER_SIZE, shell_fp) &&
++           sscanf(buffer, "PSVersion                      %s", tmp_shell) == 0)
++      ;
++    strcat(user_info->shell, tmp_shell);
++  }
+ #endif // _WIN32
+ 
+ #ifdef _WIN32
+-	if (flags.os) sprintf(user_info->os_name, "windows");
++  if (flags.os) sprintf(user_info->os_name, "windows");
+ #endif
+-	get_sys(user_info);
+-	// are threads overpowered? nah
+-	void* (*fnptrs[])(void*) = {get_cpu, get_ram, get_gpu, get_res, get_pkg, get_model, get_ker, get_upt};
+-	struct thread_varg args =
+-			(struct thread_varg){buffer,
+-													 user_info,
+-													 cpuinfo,
+-													 {flags.cpu, flags.ram, flags.gpu, flags.resolution, flags.pkgs, flags.model, flags.kernel, flags.uptime}};
++  get_sys(user_info);
++  // are threads overpowered? nah
++  void* (*fnptrs[])(void*) = {get_cpu, get_ram, get_gpu, get_res, get_pkg, get_model, get_ker, get_upt};
++  struct thread_varg args =
++      (struct thread_varg){buffer,
++                           user_info,
++                           cpuinfo,
++                           {flags.cpu, flags.ram, flags.gpu, flags.resolution, flags.pkgs, flags.model, flags.kernel, flags.uptime}};
+ #define THREAD_COUNT 8
+ #ifndef _WIN32
+-	pthread_t tids[THREAD_COUNT] = {0};
++  pthread_t tids[THREAD_COUNT] = {0};
+ #endif
+-	for (int i = 0; i < THREAD_COUNT; i++) {
+-		LOG_I("STARTING thread %d", i);
++  for (int i = 0; i < THREAD_COUNT; i++) {
++    LOG_I("STARTING thread %d", i);
+ #ifdef _WIN32
+-		fnptrs[i](&args);
++    fnptrs[i](&args);
+ #else
+-		pthread_create(&tids[i], NULL, fnptrs[i], &args);
++    pthread_create(&tids[i], NULL, fnptrs[i], &args);
+ #endif
+-	}
++  }
+ #ifndef _WIN32
+-	for (int i = 0; i < THREAD_COUNT; i++) {
+-		if (tids[i] != 0) pthread_join(tids[i], NULL);
+-		LOG_I("JOINING thread %d", i);
+-	}
++  for (int i = 0; i < THREAD_COUNT; i++) {
++    if (tids[i] != 0) pthread_join(tids[i], NULL);
++    LOG_I("JOINING thread %d", i);
++  }
+ #endif
+-	fclose(cpuinfo);
++  fclose(cpuinfo);
+ }
+diff --color -Naru uwufetch-2.1/fetch.h uwufetch-2.2/fetch.h
+--- uwufetch-2.1/fetch.h	2023-02-13 15:38:44.000000000 +0300
++++ uwufetch-2.2/fetch.h	2025-09-13 20:12:35.176056523 +0300
+@@ -19,131 +19,131 @@
+ 
+ #ifdef __DEBUG__
+ bool* get_verbose_handle();
+-	#ifdef LIBFETCH_INTERNAL
+-		#define VERBOSE_ENABLED verbose_enabled
+-	#else
+-		#define VERBOSE_ENABLED *verbose_enabled
+-	#endif
+-	#define LOG_I(format, ...) LOG(0, format, ##__VA_ARGS__)
+-	#define LOG_W(format, ...) LOG(1, format, ##__VA_ARGS__)
+-	#define LOG_E(format, ...) LOG(2, format, ##__VA_ARGS__)
+-	#define LOG_V(var)                       \
+-		if (VERBOSE_ENABLED) {                 \
+-			char format[1024] = "";              \
+-			sprintf(format, "%s = %s", #var,     \
+-							_Generic((var), int          \
+-											 : "%d", float       \
+-											 : "%f", char*       \
+-											 : "\"%s\"", default \
+-											 : "%p"));           \
+-			LOG(3, format, var)                  \
+-		}
+-	#define LOG(type, format, ...)                      \
+-		if (VERBOSE_ENABLED) {                            \
+-			char buf[2048] = "";                            \
+-			if (sizeof(#__VA_ARGS__) == sizeof(""))         \
+-				sprintf(buf, "%s", format);                   \
+-			else                                            \
+-				sprintf(buf, format, ##__VA_ARGS__);          \
+-			fprintf(stderr, "[%s]: %s in %s:%d: %s\n",      \
+-							type == 0		? "\033[32mINFO\033[0m"     \
+-							: type == 1 ? "\033[33mWARNING\033[0m"  \
+-							: type == 2 ? "\033[31mERROR\033[0m"    \
+-							: type == 3 ? "\033[37mVARIABLE\033[0m" \
+-													: "",                       \
+-							__func__, __FILE__, __LINE__, buf);     \
+-		}
++  #ifdef LIBFETCH_INTERNAL
++    #define VERBOSE_ENABLED verbose_enabled
++  #else
++    #define VERBOSE_ENABLED *verbose_enabled
++  #endif
++  #define LOG_I(format, ...) LOG(0, format, ##__VA_ARGS__)
++  #define LOG_W(format, ...) LOG(1, format, ##__VA_ARGS__)
++  #define LOG_E(format, ...) LOG(2, format, ##__VA_ARGS__)
++  #define LOG_V(var)                       \
++    if (VERBOSE_ENABLED) {                 \
++      char format[1024] = "";              \
++      sprintf(format, "%s = %s", #var,     \
++              _Generic((var), int          \
++                       : "%d", float       \
++                       : "%f", char*       \
++                       : "\"%s\"", default \
++                       : "%p"));           \
++      LOG(3, format, var)                  \
++    }
++  #define LOG(type, format, ...)                      \
++    if (VERBOSE_ENABLED) {                            \
++      char buf[2048] = "";                            \
++      if (sizeof(#__VA_ARGS__) == sizeof(""))         \
++        sprintf(buf, "%s", format);                   \
++      else                                            \
++        sprintf(buf, format, ##__VA_ARGS__);          \
++      fprintf(stderr, "[%s]: %s in %s:%d: %s\n",      \
++              type == 0   ? "\033[32mINFO\033[0m"     \
++              : type == 1 ? "\033[33mWARNING\033[0m"  \
++              : type == 2 ? "\033[31mERROR\033[0m"    \
++              : type == 3 ? "\033[37mVARIABLE\033[0m" \
++                          : "",                       \
++              __func__, __FILE__, __LINE__, buf);     \
++    }
+ #else
+-	#define LOG_I(format, ...)
+-	#define LOG_E(format, ...)
+-	#define LOG_V(var)
+-	#define LOG(type, format, ...)
++  #define LOG_I(format, ...)
++  #define LOG_E(format, ...)
++  #define LOG_V(var)
++  #define LOG(type, format, ...)
+ #endif
+ 
+ #ifndef LIBFETCH_INTERNAL
+-	#ifdef __APPLE__
+-		#include <TargetConditionals.h> // for checking iOS
+-	#endif
+-	#include <dirent.h>
+-	#include <stdio.h>
+-	#include <stdlib.h>
+-	#include <string.h>
+-	#include <unistd.h>
+-	#if defined(__APPLE__) || defined(__BSD__)
+-		#include <sys/sysctl.h>
+-		#if defined(__OPENBSD__)
+-			#include <sys/time.h>
+-		#else
+-			#include <time.h>
+-		#endif // defined(__OPENBSD__)
+-	#else		 // defined(__APPLE__) || defined(__BSD__)
+-		#ifdef __BSD__
+-		#else // defined(__BSD__) || defined(_WIN32)
+-			#ifndef _WIN32
+-				#ifndef __OPENBSD__
+-					#include <sys/sysinfo.h>
+-				#else	 // __OPENBSD__
+-				#endif // __OPENBSD__
+-			#else		 // _WIN32
+-				#include <sysinfoapi.h>
+-			#endif // _WIN32
+-		#endif	 // defined(__BSD__) || defined(_WIN32)
+-	#endif		 // defined(__APPLE__) || defined(__BSD__)
+-	#ifndef _WIN32
+-		#include <sys/ioctl.h>
+-		#include <sys/utsname.h>
+-		#include <pthread.h> // linux only right now
+-	#else									 // _WIN32
+-		#include <windows.h>
+-	#endif // _WIN32
++  #ifdef __APPLE__
++    #include <TargetConditionals.h> // for checking iOS
++  #endif
++  #include <dirent.h>
++  #include <stdio.h>
++  #include <stdlib.h>
++  #include <string.h>
++  #include <unistd.h>
++  #if defined(__APPLE__) || defined(__BSD__)
++    #include <sys/sysctl.h>
++    #if defined(__OPENBSD__)
++      #include <sys/time.h>
++    #else
++      #include <time.h>
++    #endif // defined(__OPENBSD__)
++  #else    // defined(__APPLE__) || defined(__BSD__)
++    #ifdef __BSD__
++    #else // defined(__BSD__) || defined(_WIN32)
++      #ifndef _WIN32
++        #ifndef __OPENBSD__
++          #include <sys/sysinfo.h>
++        #else  // __OPENBSD__
++        #endif // __OPENBSD__
++      #else    // _WIN32
++        #include <sysinfoapi.h>
++      #endif // _WIN32
++    #endif   // defined(__BSD__) || defined(_WIN32)
++  #endif     // defined(__APPLE__) || defined(__BSD__)
++  #ifndef _WIN32
++    #include <pthread.h> // linux only right now
++    #include <sys/ioctl.h>
++    #include <sys/utsname.h>
++  #else // _WIN32
++    #include <windows.h>
++  #endif // _WIN32
+ #endif
+ 
+ // info that will be printed with the logo
+ struct info {
+-	char user[128],	 // username
+-			host[256],	 // hostname (computer name)
+-			shell[64],	 // shell name
+-			model[256],	 // model name
+-			kernel[256], // kernel name (linux 5.x-whatever)
+-			os_name[64], // os name (arch linux, windows, mac os)
+-			cpu_model[256], gpu_model[64][256],
+-			pkgman_name[64], // package managers string
+-			image_name[128];
+-	int target_width, // for the truncate_str function
+-			screen_width, screen_height, ram_total, ram_used,
+-			pkgs; // full package count
+-	long uptime;
++  char user[128],  // username
++      host[256],   // hostname (computer name)
++      shell[64],   // shell name
++      model[256],  // model name
++      kernel[256], // kernel name (linux 5.x-whatever)
++      os_name[64], // os name (arch linux, windows, mac os)
++      cpu_model[256], gpu_model[256][256],
++      pkgman_name[64], // package managers string
++      image_name[128];
++  int target_width, // for the truncate_str function
++      screen_width, screen_height, ram_total, ram_used,
++      pkgs; // full package count
++  long uptime;
+ 
+ #ifndef _WIN32
+-	struct utsname sys_var;
++  struct utsname sys_var;
+ #endif // _WIN32
+ #ifndef __APPLE__
+-	#ifdef __linux__
+-	struct sysinfo sys;
+-	#else // __linux__
+-		#ifdef _WIN32
+-	struct _SYSTEM_INFO sys;
+-		#endif // _WIN32
+-	#endif	 // __linux__
+-#endif		 // __APPLE__
++  #ifdef __linux__
++  struct sysinfo sys;
++  #else // __linux__
++    #ifdef _WIN32
++  struct _SYSTEM_INFO sys;
++    #endif // _WIN32
++  #endif   // __linux__
++#endif     // __APPLE__
+ #ifndef _WIN32
+-	struct winsize win;
+-#else	 // _WIN32
+-	int ws_col, ws_rows;
++  struct winsize win;
++#else  // _WIN32
++  int ws_col, ws_rows;
+ #endif // _WIN32
+ };
+ 
+ // Args struct for get_something thread oriented functions
+ struct thread_varg {
+-	char* buffer;
+-	struct info* user_info;
+-	FILE* cpuinfo;
+-	bool thread_flags[8];
++  char* buffer;
++  struct info* user_info;
++  FILE* cpuinfo;
++  bool thread_flags[8];
+ };
+ 
+ // decide what info should be retrieved
+ struct flags {
+-	bool user, shell, model, kernel, os, cpu, gpu, resolution, ram, pkgs, uptime;
++  bool user, shell, model, kernel, os, cpu, gpu, resolution, ram, pkgs, uptime;
+ };
+ 
+ void get_sys(struct info*);
+diff --color -Naru uwufetch-2.1/res/ascii/menhera.txt uwufetch-2.2/res/ascii/menhera.txt
+--- uwufetch-2.1/res/ascii/menhera.txt	1970-01-01 03:00:00.000000000 +0300
++++ uwufetch-2.2/res/ascii/menhera.txt	2025-09-13 19:35:43.225771278 +0300
+@@ -0,0 +1,8 @@
++{MAGENTA}        /\
++       /  \
++      /\   \
++     / > Ï‰ <\
++    /   __   \
++   / __|  |__-\
++  /_-''    ''-_\
++
+diff --color -Naru uwufetch-2.1/res/COPYRIGHT.md uwufetch-2.2/res/COPYRIGHT.md
+--- uwufetch-2.1/res/COPYRIGHT.md	2023-02-13 15:38:44.000000000 +0300
++++ uwufetch-2.2/res/COPYRIGHT.md	2025-09-13 19:33:48.587890269 +0300
+@@ -111,6 +111,8 @@
+ -   Copyright Holder: [Houl](https://github.com/ItsHoul)
+ -   [Reference](https://github.com/ItsHoul/blobicons/blob/main/PNG/devuan.png)
+ 
++#
++
+ ## Endeavour OS
+ 
+ <img title="Endowo Os" src="https://raw.githubusercontent.com/TheDarkBug/uwufetch/main/res/endeavouros.png" alt="image" width="100">
+@@ -186,6 +188,8 @@
+ -   License: [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/)
+ -   [Reference](https://www.reddit.com/r/linuxmasterrace/comments/lyi8ce/its_actually_gnuwulinux/)
+ 
++#
++
+ ## Manjaro
+ 
+ <img title="Myanjawo" src="https://raw.githubusercontent.com/TheDarkBug/uwufetch/main/res/manjaro.png" alt="image" width="100">
+diff --color -Naru uwufetch-2.1/res/menhera.png uwufetch-2.2/res/menhera.png
+--- uwufetch-2.1/res/menhera.png	1970-01-01 03:00:00.000000000 +0300
++++ uwufetch-2.2/res/menhera.png	2025-09-13 19:33:48.587982264 +0300
+@@ -0,0 +1,263 @@
++‰PNG
++
++   IHDR  ò  ´   cI  oiCCPicc  (‘u‘;KA…?5â-D,¶ˆb¡ 
++b)L£1‚¯fw³I„$.»$Ø
++6ÑÆWá?ĞV°UE±ñøjDÖ;®‘d–ÙûqfÎeæ„¦rfŞ­‚|Ásñ˜6¿°¨E	SO#½4ê¦kOÏN&©9>n©SõfPõª½¯êhIY®	uMÂ£¦íxÂãÂSk­xK¸ÓÌê)ááG(|©t#à'Å™€ß;ÉÄ„TO-ó‡?lf¼p¿p4Ÿ+š¿çQ7iµ
++s³R»eöà’ Nƒ"+äğ”ZÌªû†~|3¬ŠÇ”¿M	G²âµ(]-©iÑ-ùr”TîÿótÓ#ÃA÷Ö4<úşk/D¶á«ìûŸ‡¾ÿuá8/Tü«’ÓØ»èåŠİ‡ö8½¨hÆœmB×½­;ú–J§áåÚ ãš—‚¬~×9¾ƒäº<ÑìîAŸìo_şŸógŞf‘ñå    cHRM  z&  €„  ú   €è  u0  ê`  :˜  pœºQ<   bKGD ÿ ÿ ÿ ½§“   	pHYs    Òİ~ü   tIMEå	12£9µo  °zTXtRaw profile type icc  8S[n!üç=‚ñ³»RïÚ<Ò$j?ZK+‚<c3IŸ­¥)%ArÓ¦¤İ˜FJ»^Æ†‚lŒR¤Ê v‰ˆæ—c¯I³’‘w!VaøGÜÎŠòNtÂşPöÇHÄŸê²te(3MŞš·eh³¥¼;ãfæ‚/ÀõÇÊ-ù8ÇçAû¾ğ’¿à‘·çüÍ;…Ø_fJÅ-Á/üœÿŸBª¡ö¹Ç}ÀşÍDß‡¾¦©è%"ë<kØÙ[Š—7ŠƒÅíÆqŸhõ/0Ş
++öµınÂ÷Wû…qBöz/"š¿-ß¼ºábq5Zs›àPjUÖe]xY_(­éaı§§Â›Qİ;JDÏÀç^ú•îÿ—(<z¸{…‘?<Ö¾˜¨{4ŸÏ»€1#½§-¨Ü³ UøI)r½§ä2üsj£{¶bµ°2Ö\º'4»=òlOUc^^›…ºÔq‘¦àóÅ_¯à >ˆ„íŒ•[ë£P­õØSº´ô¨®üÊöƒ   orNTÏ¢wš  € IDATxÚìıwpÔgšï3»uö©:ûÇ©úUS³;»;3Æ9óŒÃ8ŒÇçœÍ8Œ ‰œL0É`0¶1"g¢( µZ9çœsè¬Ğ\ÏB˜ Ğ¹¿ßî÷«êS³;ƒt«»ï«ïû¾®qã        €m¶”˜„G     (îî—Àh[û(æ    Pº¥Y™¦ÑÉ/…F
++y     ”,¿³_¦it2M£“ …<     J¶§Ü|±Ÿ¦ÑÉæbîÊ     XóÓõ—òA):i·XÿG     …Ihê½¬ˆJr3Mï     PœåÙ†aùeY
++y     ”¤Ş`•éZİ°…ü4N2Ûû)æ    PŠıæ‹øil(`     Š1Únü4Nf¥ê)ä    P‚Ø†ŞQ‹ø¡ì¯0SÌ    àmëòŒ6ò):
++y     ¼©Áh•ÀM…ü4NÎ1Š     ïù©Àhs?M£“5¹4½    À+ÚÌÖ?ÎÔêí*ä4:)ìb     —ÔÜ'vñCù™Qt     xŞ’LƒİEü4Nf3Š     ÏÊíèw¨ˆJt­…b     O	-69UÈ1Š     Ï™“¦wªŸ¦ÑI£è     p¿“u½NñÓ4:ù1Ÿ¦w     ¸]`ŠÎ%…ü4Nêó     ¸K~g¿ËŠxvå    p³­%&—ò³SõÒn±ş,     nàÂ"~(gzÙ•    ÀÕTš]^ÄOÓèdNšB     Wû6Ëà–B~šF'É-Œ¢    Àeªtn+â§it²¡€¦w     ¸Ìê\ƒ[ùéZ´™­ÿG     'Õèİ»?”ME&vå    pVtÅ#…üvå    pŞâLƒG
++ù NšE    €ÃR[û<RÄeI¦B     G}—cğh!?M£“´6FÑ    `·“ußL­Şã…ü†BFÑ    `·Èj‹Ç‹øiÌÔê)ä    °×­Î+…ü4Nv•™)æ    °URsŸ×Šø¡tX¬ÿÂ3    €6½^È'7Óô    €1µ›­ÿ”¢óz!¿*‡Qt     Œi[‰ÉëEüPò;û)æ    ÍìT½b
++ùõùŒ¢    `Dém} "~šF'³SE    ÀˆÖäSÄ%²ÚB1    À•J»WÄOÓè$0EG!    À•v—™YÈOÓè$‰Qt     \na†^±…<Mï     ¸DRsŸb‹øihtR© ˜    `Ü¸qãæ§ë]ÈOÓèä—Bvå    WÖ3 ¨‘s#eNš^:,Öá    øµıfÅñC9]ßË®<    À¿ÍÔêUSÈÏIÓSÈ    ü×ñ:‹jŠø¡$·0Š    à§¾Ë1¨®ßP@Ó;    €j2Y%(E§ºB>0E'­fë«<ƒ     ¿òK¡QuE<»ò     ¿Ôl²ª¶ˆŸ¦ÑÉ¬T½´›­ÿÎ3	    ğgzU]ÈOÓè$±‰Qt     ?±2Û úB~A:£è     ~ °«_õEüPR[E    ğqëó>SÈÿRHÓ;    €›“¦÷™B~ºVG!    ğ]g{}¦ˆÊ¶RÅ<    À7ÍÔê}®Ğè¤Ãbı]    €OÉlï÷¹"~(çšiz    ğ1[KL>[È¯Ì6PÈ    |KPŠÎgùiätôSÌ    |ÃÁJ³OñÓ4:ÙÀ(:    €¯˜Ÿ®÷ùB~vªB     ~%İıàãEüPUš)æ    êösÑ/Šøi¦è(ä    êUgğ›"~(IŒ¢    ¨Õ¡*‹ßòkóhz    P©¥Y¿+ä§itRÚ=@1    P—Ü~¿,â§it²>Ÿ]y    €Ê,É4øm!Ï(:    €ªÔè$0Eç·…ü4N×Y(æ    êUcñë"~šF'FÑ    TbNšŞïùi$2Š     tñM½ñò#Mï     J÷C¾‘"ş’ãõõ+Å<    @¹fh)à/ÍÏìÊ    jg™™âıŠÌJÕK«Ùú*?     Å	 p6§zÙ•    (KrsEû™Ÿ®§    (Ëº<šÜ–$FÑ    ”¢¼g@8V?z~¢é    @)B‹Mëc$(EGÓ;    €2,H×S¬3Š     š–>ÕÛ±+ßb²FóS    ğvãíËÙFFÑ    ¼$¿³ŸâÜÎ,`    À[v•™)Îˆ¦…Qt     /˜•Ê±zG²>Ÿ¦w     ‹ª±P”;˜éZ…<    À³e°ïL¶”˜(æ    Q©ÀŠqgÓj¶>ÎO    ÀíBŠLâ.È™FÑ    Ü¬Ñh¥wQ–e(ä    îYM“;W&­Qt     7Zm  waÖå1Š    à&…]ıß.ÎL­¦w     ÷X’Én¼;²»ÜÌ®<    ÀµŒV™®¥èvGSE    p±cµ4¹sgbêE    p¡Y©z
++n7fE6£è     .’ØÔK±íd·÷SÌ    œ÷S‘B›]y    €ZĞäÎ3™®ÕI“ÉJ1    pÜöRE¶VÁ(:    €(®=~ê     Ñ´ôQX{!Çk-ó     û­Í£É7²*‡¦w     ;•õPT{1…]Œ¢    Øas1Mî¼™eYìÊ    ì° ]OAíÅ¥è¤Z?@1    [b3Mî”•Œ¢    Ø`>»ñŠÈL­B    0ºÜ~Šh%ª†Qt    €Qì(¥É’²"›¦w    €QÌÔr¬^I	Ğè¤¤›Qt    €a„WY(˜…é¹+Ÿ×É     *‹3Î
++My{GÑ%·ôIF[…<    ¨EI÷€¦P0+5aîE—ÓÑ/óÓõRÔÅ<    ¨ÆùF
++f'0Eç¶"{I¦Aæ¥é¥Ñh¥    5¨ÖP,« áU®E·¡Ğ(A):YœIw|    PÃ4¹SE–f¹¶Øª±Ètí`güeYò     ‹29§–Qt®ºÇ^Üİ/³S}Ş×å)ä   @´­}É~¸+¿¡À(—|A°µÄD!    jÀÈ9õe´]ùÒîi1Y7öœ'·ôÉtíåôâ{)ä   @éêÄÈ9Õewùğ£èšMVY›gsw}eöå_ŞÌNÕK¥n€B    ”î@¥™ÂX…™•ª¶è>Xi– N¦ku¢míö×¯µ\õåÍ·4º    ud7^µ	«¸zW~Y–áâ÷MÅWïÊ7­²ğŠÆ†lá~<    (ßÉº^
++bgaÆå»ò©­—ß{ŸŸ®—V³õŞKÍ¾
++óÅw—Şoâ~<    (Şš\#±ÊGÑeµÿÚônoùåEú­N²/ùß¯77”9iz©Ñs?    ­Éd¥ö,ÎüõnûŠ+Øhtr¢î×ö"ÓU»ñÓ4:ù.‡ûñ     xìÆûNr;ú¥Ùd•ùéWß}?Rm‘qãÆÓ¶öÉíğ»úÃİµ    (H£Ñ*4¹ól-1IvGÿe÷ã¯lˆ·6oø/n‚R.?    P Óõ4¹ó¥¥èäh­åªcó„WY$¶¡÷ªqsCYÊØ9    P¾+Çßè`?Ü Ò,WŞ¿´Ğß]Æ±z    P4MK…¯v°n§~c¡iÄk³RõRÚM·z    P´õù4¹ó§#÷W6À»4krñ     t3µ«÷—ÌĞ¿S?Tä'4õRÈ   €’í.3SàúQF›L°0C/íë¿òª     …j·Xÿ•‘säÒnö¼*    @Áš9G3/M/ušÜ   €¢­É¥ÉÜ«dä    (ZaWÿˆMÏˆe~º^ŒV7nÜ¸“us•n@ò:û%µµO’šûDÓÒ'9ıÒxá×     ¼àçvãÉànüªƒü\`”åÙ™—¦—Y©z	Jìbxá?gjõ2'M/Q5Ü£    ¯˜ÊÈ9òk1oË¯ù¥ĞD    Şp¼ÎBKlÎL­^BŠLŒ¦    o™®¥8%¶Íœ_”¡—˜ú^vâ   À[’›û(RÉ˜Çèç§ëe…YZÍÖ{yÕ    €ÑäŒ¶ÿMÆ`ÏLy    P€&“•‘säªİ÷9izY›g”¸FĞ   €¢l`7\È­N~È7JDµEÊ{Ø}    EbäÊ¼4=Å;    (YbS/,¹,§èF    Ê5?İxry–e(ä   @‰R[9G†ïR_Æıx    P…&
++W2lVç²+    Š3]KÁJF»ò      [KØ'£go¹™B    ” İbıvãÉX™©e    (BbsŸP¨r°’]y    ğºeYŠTbSæ§³+    ^•ÑÆÈ9b{4:Élï§˜    où¥ĞHJìÊ²,FÑ   €×ÌÔê)N‰İÉbW    <oW™™¢”8”ME&
++y    ğ4
++RÂ(:    P‰Ä¦^
++RÂ®<    ¨ÅŠlFÎç2]«“V³õ^^M    àf9ı¢Ä%‰mèeW    Üm]#çˆk2'»ò    àv³R9G\—¸Fvå   ÀmÂ*9G\›5¹F
++y    p—À
++OâÚhtÒh´RÌ   €«Å60r¸'ßå(ä   ÀÕ¾Ëaäq_*uó    à*9ı@±IÜ˜•f
++y    p•5¹Œœ#îÍ¬TFÑ   €K4™¬2CK¡IÜŸCìÊ   €óöW0rx&‹3iz    Ni·XÃÈ9âÉQtm}ó    à¨cµ
++LâÑÌæ®<    8ny6#çˆç“ÙŞO1    öÊéè§¨$^IH‘‰B    ìõM†¢’xí®|£ÑJ1    ¶ªÒHMîˆóK!»ò    `³İeŒœ#Şoz×f¶ş^    0†V³õFÎ%$ºÖÂ®<    Œ%¼Š‘sD™©e    Œii&#çˆrr²¾—b    F’ÚÚ'DAY™m    €‘ÌIcäQ^²Úû)æ   àJ]ıD‘YÎ]y    ¸Jh±‰¢‘(2):)ë ˜   €!F+wã‰¢Zl¢   €![KØ'ÊN€F'5zvå   `Ü¸qãÆÍO§ÉQ~v•™)ä   àLC/E"QEæÓô    Æ›®¥@$êÉájÅ<    ÿ•ÒÒGqHT×ÁW.    ¿µ>ßHqHT—¤æ>Šy    ş§´{€‘sD•Yše    à~*`7¨7švå   ø‘v³õ7³R9GÔ›5¹F
++y    şãP•…b¨:A):©7X)æ   ø‡À
++A¢şüÏ®<    ?p¢®—"øL*tó    |Ûòl ñ™ì¯0SÈ   ğ]ém}Ä§2S«§   à»eĞ©ø^v•±+   À•÷HMîˆf~:»ò    |Ph±‰¢ølÎ5÷QÌ   ğ5ú	 Ø#>œY©ìÊ   ğ!{ËÍ{Äç“ØÔK1   À7ÌO§Éñı¬Í3RÈ   P¿£µŠ<â	Ğè$¿³Ÿb   €ºM×RàÿÉòl…<    õJoë£¸#~• Të(æ   ¨ÓªÅñ»„›(ä   ¨OV{?EñÛ°+   @u~*0RĞ¿ÍÎ23…<    õh·Xÿe¦–‘sÄ37MO!   @=6›(æˆß'¬‚]y    *Ğ`´J E!”¢“v‹õßyW     hÑ5Š8B.äLc/»ò    ”m^wã	ÊütîÊ   P°£µìÆreN×³+   JÅİır¢®WRZúXĞÁg-Í4P¸rEVåxß  P›=åæaw³Rõòm–A¶–˜¤°«ßc½#Õ›¯zƒ•(lRÔÕOÑFÈ)ëà½  @-¢j,”2ö"/0E'krr¼Î"En,êëVY”¡—Ez‰mı¸g«ÙúøâLƒ¬Î5Hb3'	0º%ìÆ2bepW  @êâHq”¢“uyF)îv}AŸØÜwñ‹…éZl(4J«Ùzïp¿öHµES~==Ã=OŒ §ƒİxBÆJ^g?ï¡   J—ÚÚ'Óµ/ú4:ù&C/'êz¥ÅdıÑ¦ÈjËe3¾4ƒ_Ô®>ö¹£ÔtÙ¯“¦—8F)a¡Å&
++5BÆÈ¦"ïŸ   J—ÑÖ'3µ®Å˜¢“eYIhr®>^ûë.û¥ÅüÊlÃUÅüş
++óe…ü4N¤ë¹ë‰Ë4­N}aEˆ¿$0E'U:Ş?  ­Ùd•ïr\oxNš^×Z†İEKnGÿ°EWÀ…ÎÊå—é'ëz¯*ú§]ØÁçÙÅà"vã	±5
++xÿ  P¼øÆ^™á¦İÊÚÁ¢Ú]úV³õŞo³#å_–eÒîÁb¾¬g`Ø):‰ª±°Å¸6³õÏJÕS bcf¥Òô  @v–]}DİÕÇ5—flnF·¯bô?ÏâLÃÅ¦L«F8Q° ]/õ{ÑµŠ3BìÌr3ï   j°,Ëı£¹4:Y’iÓ½#v¢7nÜ¸ı€,H×9*)£­OÂ«,Ãıl)¡q“¿³e´"!äê4™¬¼  (]Z[Ÿxêr€F'óÓõ²¯Â,¥#4¦«û”ÀüôÁ»øóÒ†ÿsÏNÕKAã”üÕqvã	q8Õ\O  P…ıæa›Ç¹³ Ÿª—MÅ¦«
++î“uŸ-§æ¤éeUaÄ]yÆ)ù¯åÙ
++2BÌÂtîÊ  ¨ÆOF·Ş—­ ßZb’jı¯;ô)-¶Ç›¡Õ8^lNãèüQZ[Å!N&’]y   u¨ÑÈÒLïìd\hR^e‘‹õ7ãÆ·§Ü¶S£ü÷»iÜäw¦Ó©g3Ÿ]y   õÈîè—9iŞ+„SÇÌ¨³Hµ~@~)49uJ`Q†^ZLÖ}<³ş¡ ³ß£WDñÕht’ÒÒG1   ‘5¯C):Yši=åfq¦«~`ŠNâ{YŒú‰Ÿ
++Œa„¸(sÒØ•  P•µyFÅì
++}“aùN—¦é(éî÷xB|=‰M|
++   m¶5›óäı-˜1²"…!.ÎÚ<#ïŸ   j²½Ô¾ûéS“uòä¡yúp­¼{ªE¦$÷¸e‡ŞŞf¦V?âÌzø%}ñDˆ/İ•/îîçı  @-jô²ÀÎ#í¯m”ëBòåÚà|¹aSüu¥LNìòún~r3M›|ÙÖvã	qW–fxÿ  P“Ó½dGã»)É=ò|d½ÜZ ×lÌ“k6æÉøà<¹s{‰LŒïôÚBty–AUYdg™Y‚‹Lò}®Q¾Ë1ÈÊlƒ¬Î5Èº<£ì*3Kt­EÎ4ôŠ¦¥OŠºú¥Áhe«pÍ&+Å!nş2´¤›SM   ªâHã»—£äşİer}È¯ı5óä–ÍEòi\‡â­):™®ìÚ¼ ]/+³òC¾Qv”š$ºÖ"©­}RŞ3pqæ=¼çx­…b‹7'˜¦¡   êRÔÕ/ó˜-ÿEb·¼İ †UÉ-[Š.+èo
++-”×5É¤„.™”Ğ%S“Õug4àÂİûyizY•c¢ÁŸ»¤çÌDBˆí)£×  €º„W9>[ş­Ír×¹68ÿ²b~|pŞÅ»ôwï(•"ëeBL«LJèTUai?+U/K3²¥Ä$ÕÑ´ôIAW¿”tH­a@ZLÖÍü4¹ÎQvã	ñXBØ•  PŸÙ‡€_ë–Û¶^¾+?\ÆoÌ“7È_ö”ËÇ›ä‹ÄnŸèú ÑIPŠNf§îà‡›älc/;\NZše À"ÄC™©e”'  €êÄ7õ:¼+?M£“bÛ®Ú•+7l*GöW*ş^½£şL­^eèeS‘INÖ÷J9…½Í²ÛûGHq<¡ÅìÊ¶*ëÈ¯ €÷­Îunô®%vòC¹mK‘||¶ÃçÉ³Rõ²<Û {ÊÍ’ÔÜÇı(f§r7o¤ŞÀ4`4F«™d†vğ$^BS/¯ €w¥´ô9µ |%ºÑ¡Bşšyrë–"y.¢^>>Û!S’{übäÓL­^¾Ë1ÈÎ2³hZúX\ŞÖGAEˆ—r¤šF`$UºY“k¼ìÄØòl¯ €÷-Êp|'ôë¤¹)´Ğáb~|ğ`Çûûv•É‘õòÉÙ™êGè9ºäÇÔ÷J«Ùz¯¿şn(0RPâ¥ÌNå®<0œ“õ›ïrW]ûš©ÕKF›k¾Œ/îî—Z§õ  8Tivjø\DÃ…ü•Eı¡rÏÎRy.¢^><Ó._%õøÍbz†V'«rÛà_GöÊ{¸Oˆ—³¿ÂL!\aO¹yØ^B„W9~’¥¼g@Â*Ì²$Ó 3´:Y˜¡çê À~i­}N5½û4®Ã%…ü•Eı›
++ä¾]eò\D|â'Çï‡2]«“ïrïÖvùö,ûòÙ'ÄÛY˜Á®<p©¢®~©wK€F'ûøò+£­OVf$(EwÙØì,ãË4 €êâL£±I	]2>8ÏåÅü•ÇïÜ[!¯k’Ïºün‘='M/Ë²^eñ©oíÛ-Ö™E“;B‘¸FxCBŠL£¾^ì-¼Ã*Ì£nšü\`äõ °ß’LÇ»×OIî‘6¸­¿4×çË];Jä…Èz™œØå—‹í€»g{ÊÍRà»õÛJMQ„(ä$Ÿ†ğq½#vŸ¯5ÈX_2Ûº#ŸÚj[3×¥Œ‚ 8 ¸È¹bêÎí%)ä/ÍÍ›åo«åıÓmòå¹n¿-ê¿Í2È¡JuÉÛYf¦"„]yÀ#r:úeaº^¦kuòC¾QZÍÖß]ú¿Ûrå+lŒÏ]S4:Ñ¶2É à€£µ§=´·Âã…ü¥»ô·m-’‡öVÈËÑòñÙ¿j’wénÚùF‰ª±H£Q}s¡×çizGˆ—ÃX-øƒõ—êl,üu7<¥Å¶¾AÃ5»«ÒÈ¾
++û¿˜Åä €£ò;ûeºÖñÅß?×z­¿²¨¿aÓ`çû'Ãkä½S­ò•îÖÏĞêdeöàú*zîÔÿHã;B¼Ä&våá»jô² ]ÕáÇjs[GòjZú.+ş¿Ïuüóë»¾@ 8aY–ã÷äß‹iUD!e®É—›7ÊŸw—ËÓ‡kå½S­~w·>(E'óÓõ²£Ô$™íÊ¿Sÿ33å	ñj–dRTÀw¥¶öIĞ0;î+²r¨Êbó”‡*İ€ì¯0Ëüt½Ó§ÉÎp¥ àgî)OMÖ¹µs½+wìoÙR$ï«wOµÈ×~v?(ep±’Ü¬ì»xóÓédOˆ7{ow÷SXÀ'%·_ÈÏJÕËL­mŸ=sÒôÃş;Ï
++ À)…]ı6ˆOu®wÙX»ƒ³êÿº¯R>‹ëô»ÅúÚ<£¢wè¿Ë1PTâ¥,ËbW¾)­uø;ğŞêÑÂ—f  —X‘íxñtÛ–"UòWÎªÿÓ¶byåh£_½JÑÉæb“Ô”w¾ÍlıßÎü<BœKF]´á{466³óD×Zx \ã¸İëïß]¦ÚBşÊã÷wn/‘g#êdR¼ìÔÏNÕËî2³´›­ÿ¢´ŸÉZ
++*B¼‘FŠø„F£UŠºú%©¹O6*cBJHsã .Tk9i¯4¬Ê'
++ù+ßßº¥H‹¨ó‹úéz9\¥¬‚“õÇo³Ø™'Ä'v*U4õş«İlıMYÏ€¤¶öÉñ:‹„WY$´Ø$ßçeQ†^f§ÎŒWÊNü*ºÔ Üac¡É¡¦ç"ê|®®¨ü@µ¼{ªE¾Hôİ±v«rŠ:V;Ü¸ Bˆû³’¹òªĞd²Ê¸qãÆ•öH^g¿œkî““õ½²¿Â,ÛKM²µÄ$¿šdC¡Q6šäç£ü˜o”õùF	)2É–“ì«0KxÕ`Yc‘èZ‹œ¨ë•Ø†Á$6÷IRsŸÄ5ö^LlC¯œ¬ï•³½’Ğ4˜è‹DT[d…Yö”›å`¥Yö]ø¿÷W˜eg™Yv\ø3…™dS‘Iv–™eo¹YT[äP¥Y"ª-Uc‘ãuƒ†u½r´Ör1*ÿ^ëòŒ²<Û sÓÕ¦ŞuPğkjQ†^ªõ|A pƒø¦^‡¾µ~óD³OòWŞ©¿ys¡<²¿RŞ9Ùâ“»õA)ƒGÿŒVE,8V™J1Oˆ§ß(:¼ó~WÔÕ/‰M½^e¹Xô®Í3Êªƒ|›e9iz™›6¸Ó<ô\ùÚô„€+şo¥é¶œzËí ¹ ÀMZLÖ}ì~~Û&ãı¤¿òNıŸ¶ËÓ‡kåã³25Ù·S‹2ô§·ºY˜A1Oˆ'³¹˜»¼îÒl²J~g¿œ®ï•ÍÅ&Ym¸xú(€Ÿ=ŸúRb^š^RZh 	 p³à"û×y®[®Î÷»BşÒÜ¼¹P«’bÛdJrOíÊ¨4+bRÒİ/³Ø™'Ä£©â®¼KtõKtEÖ\¸»˜ÂÏ–?d~º^’)â ìàxµÍ’wWnÜT †UÉ‡±í>µC¿<Û å=Ş_ĞWë8fOˆ³µ„]y{Uê$¶¡W¶”˜dE¶A¦kÙe÷Çø…zF9 <§Ãbı#ÇëïØVL!Å]úÛ¶ÉSá5òşé6ù:Iı»ôóÒô’ÜìıEInG¿ÌK£˜'ÄS#*ùd[~g¿l/5ÉÒ,»íñò]A*8Í ğ´×?°§œ~„\R ÷î,•×5©¾ãıt­NöUxÿ¨}Ag¿Ï5x"D©aîõÕšMV9ÓØ+?eNšw35Y'_$vË‰İ29±K>Oè’É‰]2)¾sğ?ÿsªŠ®£m/åõ ğ’äfû×?^KÑnCs¼Û¶É?×Ê§qªŞmPÂqÛ’nÙâ©×¼R¦XxSQW¿ì-7ËâL…»ù*©[&ÆwÊ„˜Vyåh£<s¤N	«’öVÈ=;KåÎí%rûÖb¹mK‘Üº¥HnŞ\(·l.”›BåæÍƒ¹mK‘üi[±üyw¹<y¨FŞ<Ş,ã;Ù™>±™£ô  /ï4Ø{tÙŸFĞ¹b.ı-›‹äÉğùL‹[³6Ï(-&ëŞüYMoë£˜'Ä9RmñÛ%¶¡WVdS¼•)É=2)¾S^=Ú(†UÉ=;KåÖ-ErÃ¦¹68_Æç9=áfü…/ÅoÙR$Ş].¯môúØÀsj  ?íú ›”Ğé÷ë¹GûÖby.¢^µóè—d$ÇË³qºúY`âbÅß>£j,âHÏ+Şß9Ù"†UÉí[‹=¾¸.dpìKÑòå9Ï_]›¡ÕId…"  Çj-vG·m)¢@wğÈı=;Kå­Íª]7S«—èZï.dò;ûÙ™'ÄÍQBwËîè—_
++Œºcäì»§Zä¯û+åÆMNï²»êsôÑ°*6–•ª—£µñ  …©ÔØ½yú0÷ämŠ÷hX•*ïÏhtòC¾QêŞëÒ›ÖÚÇâ›7ßöÅÏ»zƒU"«-²0¦u—æë¤ù,®SŞ:Ñ,ÏGÔËcaUò§mÅr]ˆrOßİ·«L>‹sÿ•µÙ©z9İĞK P¦¥Y»>Øşyº‚Ü¹uK‘¼Yï•c‚ÎfQ†wGÔvÑÍwÆ—v “›ûdM®Q¦ky^/mN÷şé6yúp­Ü»³Tn
++-¼ß®¢ÏĞûv•É$7÷ŸI¢© @Éö”›íÚø<¡‹BÜ…÷ş	«RåİùZï.ö³Û9fOˆ;ÇkuX¬ÿ¢ÖÏµ£UUše»ï—İsÿ0¶]
++¯•»w”Êõ!2>XİeŞW)_¹éËğÌö~Šx €²¥´ôÙ½»Iîúİù—¢TyÔş—BïuñÍhë“™ZŠyBÜ‘˜zõ)Îíè—Ÿ¸û~å]÷77É}»ÊäÆĞUíºÛrUíÕ£.Ì²)â jàÈº{v–R€»¡‰Ïı»ËäóõíÎ¯Ï7J³É;ó§K»(æ	ñó»òš–>Y•c@®Ü\v÷ı­ÍrÏÎREßww6wï(uió»ÔVÓ Td]}cèş¼»œâÛM¹}k±¼u¢Yu‹ÆeY¯Í›Ïéè·ûË(BˆúïÊG×Zd™}^|=S“uòal»<´·B®ßTàd'Ä´ºä±û6Ë •º
++y €z„WÙ7†îá}İn]˜äË“á5ª[@.Î4Ha—w$võËšYâòÆ–Jû¼ª3ÈR³ßGèaóTx­Ü¼¹Ğo>/ÇoÌ“®uÉã·µÄD P—œ~»:ú>VEÁíÅÉƒ{+T·œŸ®÷ÚÑÄ*İ€Ìeg—öÁHiQÆQãÂ®~	.2ñ…İ»ğoo–»v”¨º£¹w™KFÍ5yéŠ  k7[ÿÍ£É?TC±íÁûŸœU×ÌùÙ©ŞOWÔÕ/Ù©#Ä¥¯go~>tõË/…FFN‰ñòXX•\ïÃ÷àÇÊÛKä+'îÉhtRÄn< @¥~È·ıü?×Rd{0·m)’bÛTµ¸œ©ÕK´—î×ÖèXôâÂü\`ôøk9£mpş;ìFnf÷ÊÑF¹mK‘Ou¢w$7o.”IN4ŠJÑInê *Vaû<ùç#ë)°½°Pyıx“êfQŸôÒ«zƒUe°3Oˆ«òSQêî?zœÜÒ'Ë³Ì%_%uËßÕÈ~ĞÌÎ–ÜZèÔÄ—%™Šx €ze¶÷Û¼‹ùrt#‹/ä†Mª›7?]«“C•f¯İ™_œIGkB\•…z·Í—Omí“•ğcæ‹Äny4¬J®ÎçsÑ…| Mî  j×h´ÊïÉ¿u¢™ÅƒçÍÿ#¼V¦$÷¨jgş”—væ[ÍÖk˜3Oˆk_Ï¿]6¦«Î0 ÁE&ĞÛXÄ?¼¯Â/Ú–[·9\È¦(§¡#  [•cÛîå„˜VŞìhœ'O†×È×Iê)æghurÜKwæ[LÖ•+³Ù™'Ä•İì¦;¿; Ò,³Rù¢Í–LNì¢ˆ¥ÙİÔdÇ×9izi¦[= @ív—›múàû0¶ÅƒŠù§T6k~¦Ö{£éÚÌÖÿß²,ŠyB\™À¬È6È©ú^i7[ÿİÖ×cJK×^ìœÿÀ^Šø‘òÀr‡Ûòñ  õKnî³éƒï£3òJ)æÿq¸V¦ªhA:7M/Ù^ìü-Å<!n)èeèåP¥YêÃ¹¯ÒHdEg8FoG>ë{w–ú}gúÑòRtƒÃ'K¼5]  —j4Zmúğû ¶Åƒ‚Šùg#êÔÕ0+]/%İ^[<m(0R â¦#÷óÒô²¿Â,E]ƒ_Ø%5÷ÉùFĞ;÷O·É]ÛKø¬£oÌgq=¾³RõR¥  ø[>ü>9ÛÁ?…-d^9Ú¨ªª·Çı¬Í3Ò›7ô—ş'±?oŸl‘Û¶ñ7FîÛUæpó×5¹« øY!ÿÑ™v
++y…åúù ¶MUUo/¢B‹M„Eåë¤y.¢^neF¼-™Óêğu³½ò  ÿ*ä'ÆwÊu!Ì°UZnsb·âíFCû*Ì„Eä³øNyho3âí˜ïÌ¯V³õV}  ¿*ä?Oèb·@¡ypo…|¥¢±tì.3{µ˜ß[n¦ù!Äk™ªÑÉ{§Zå®í%4µó@·ú NVšÙ ø–Ìö~›æÙrwOÁÍïÔ9<S×[Åü¾
++ï.ªNÖ÷RPB<)É=òRtƒÜ¼¹Ï0;óTx­Ã³ã«õ4¹ ø˜²±w’ur'tnPwÃ¦¹.$ßåın-pøŞ ·2]«“„&ïŞWLhêeg;2SKC;g29±K?PÍU5óÖ‰f‡÷m¥&Šx €ïi6Ù6‚îş]e,$\Ttß³³TîŞQ*7…ºìnä=;Ker¢ºîËÏJÕK¢—‹ùâî~ŠyBìhÆãàÀQúd¼sªEîÜ^BãX'¾ŸßéÀ—Oú‹£ ğ9¶|>VÅbÂÅıCû*äÙ#urß®2¹)´Ğ©»’ãƒóä™#uª[àÎIÓKv»wY]ı2›™×„7db|§<~ ZnØDŸgrófÇİı\ÀÈ9 €Ÿò;PÍbÂ÷ÛïØV,oh–cÛåï‡jäö­ÅN}9ğá™vÕ-tç¥é%ËËÅ|­a@fPÌB\wş­ÍìÂ»(İ_éP?–¤æ>
++y  …<‹	÷ÔyöH|Ô#Ÿ'tÉKÑrçö‡İß¼¹P>9Û¡Êb>·ÃûÇ—f(B!NåÓ¸y,¬Š]xæõãMõbi1YW²Ê ø¬=åcÏÖşëşJn¾ÿ÷hXÕÅ{î_'õÈ+Gå¶-EvïæÜ±­Ø¡»„ŞÎüt½zù.c«Ùzóú|#Å!Äî|Ô#/F5Èm[‹+çâÏÇI	ö¦màX= À×¨{×ı»ivç‰£ö÷í*“Oã:.»_ùÌ‘:¹uK‘\¿©À¦]úñóäÏ»ËåkÍ—Ê‚te4&ú¹ÀHwnBˆÍÇè'Ä´Ê_ö”»¬)ù5·o-vèX}Z+Çê >.£­oÌÅ{w–² ğPş´­Dşyºí²Çÿ‹ÄnùèL»<s¤Î¦İkƒóå©ğU.Š¤ë¥Ş`õú,¬ÂL‘B5“ºäoifçÎ<ë@#×åÙŠx €ï+·a–üİ;(ä=™[·83÷“³òàŞŠ1w~nØTàğÜ]%óu
++(æ£j,2]K±B¹:_%õÈCû*Ø…wçIµy—R³u7>¹…İx €h5[ïŸ>zÇî{Ø‘÷J¼×6ÊÔäáO®•›BGıwÜ¶¥ÈîER2S«—vËùßxûõq¦¡—brÙQú÷O·Éƒ{+¸ïæÜ²¹pØÏÀÑ²4‹İx €ù.gônİ÷íâ¼7rı¦y6¢N¦$_}ß}j²N&Ä´Ê½;KGİRë}ù¡®Ãg{½¾(Ëíè—À
++Bü9“»äµcMò—=år]»ğÈßVÛı<%4õRÈ üÇ–Ó¨Œî­`Qá¥\’/Oª±ÿ"±[¨—Û·Ë›
++®êrmp¾<Q§êô¦"“×ïÍWëdI&ãéñ«ãóçºåó„.yûd‹¼Ó*ïœl‘‡÷URÈ{èXıGgÚíz¾æ¤é)â şålcï¨]ºg¼×Çï<q°Z¾<×=âsôyB—¼ºMîÙYzU1ch¼E=µ%@£“3ŞßiY˜¡§À!ÄòY\§¼Õ ÷ï.ó:q]nØT`÷su ÒL! ğ/E]ı£Ş~)ª……ÆÓ=°·B>Oè½‹r|§Ü½£ôª»›wn/óŸUC1¿6Ï(e=^]¬m(`Ö<!ş2ş–-EìÀ{!ï«´ëù
++LÑQÄ üÓâQÿótëU»¼Ä;Gï¿bÖüH;Hwí(¹¬˜œ'ÏGÖûÄ;(E'Gk-^]´í)g<!¾œ§Âkä†Mr]H¾\œ/ãƒOG]’ï’ÏÃñÁƒ¹.$_n-[¶ÉõŒ±»{µ2r à·~)4:+—	åówï(óîàgñrß®²Ëœ7…ÚßXÉ™“¦—‚®~¯-ŞâÆ¸’BQws»bÛäõcMòrtƒ¼İ ¯k’wN¶È»§Zä¥èyd¥Ü¹½Dn
++-¼XôşCÿ÷M¡…rSh¡Ü¾µXîİY*ì¯”§ÂkäÅ¨yíX“¼}¢Y8X-7RÄ_Ö­ŞŞÓZIÍŒœ ø©u–‹’)É=ò§mÅ,0”;¶Ë±mc.DÙÿkc¦kƒóåÑ°*ŸZl¥èdk‰IZLÖ•Şxİ¤µöÉœ4îÍâ™zá}vb|§|Û.ïj‘÷NµÊ{§ZåŸ§[åıÓmòY|§LNìºêKÔ©É:yÿtSa†ÉKQv=sir ğgUº™•:rAò7Ş9ÜuŞ]Ç%ïÜ^2æÎüÔd¼İ wl+–kƒp>s¤ÎçÔ3´:IôÒØ¡ÒîYN1O±±~R·<{¤Nn`şªÜjÿnü®2šÜ üÜÒ¬‘ïÉ¿q¼™E†ƒ‹’77É£aUrë–"—÷¸gg©LŒïs±óyB—<Q/wl+–ûv•ÉËÑ>·8Ğèdq¦AÊ½Ôoy6ãé!£çÓ¸ÁkO|>›Çì<5”¢“Ìö~
++y €ÛWañxı'g;¸'ï@®É¿8úmbüà£{w–ÊµÁ®y,Çv÷’Ücó\äÉ‰]29±ËgÊA):Ù[n–v‹õ7~m)1Q¬B†½¢ört#»ğcŒZµwTê
++šÜ 0n\v{¿¥ÿaùEb·Ü¶¥ˆÅ†“7O4_UL¿Ó*†UÉ¡.9¾oïBH€F'ç¼Ğ ig™yÄ×!Ä?GÙ=²¿’ÏD®‹Ùû^e¡ `Ü¸qãeèG¼kıàŞ
++t™9ºqÄFIŸ'tÉ‘õrûÖb§İßº¥Èîq=şRÌ¯Ì6H‘‡»ÛŸkî££=!D>>Û!wm/áóĞMîæ¤é¥J7@! À¸qãÆí(5X€<s¤Å†yÖ†ærS’{dBL«ÃÓÆçÉßTûÔx9Wgg™YŒV-ú
++:ûe>MğñË|‘Ø-ÿ8\ë’SW4¹>?)â ’ÚÚ7â±à÷bZ¹'ï@>\k×=Ê—¢êtóæBvåmØ¡?ZëÙ£˜ßfÑ_¿ÿşY\§|Û&oo’Ç\tmÊŸòÄÁj»óéZh[™ Àe–f¸'ï¥Bş×ã˜írMñ®Î—ç#ëYXÛo³’èÁûóÛh‚GˆïÍ‘OÖÉ‡gÚå=rã¦¹>$ßå“IüeLëÇgíûzu.Mî  ¸ÊÎ2óˆï£aİ÷şõöuR¼İ ·mµ}lİÃû*Y`Û‘õùF)óĞ¸ºƒ•f™®å1'Ä×2)¾S8Xí²i$ş–{w–Ú=™$®±—B €+åvôXp¼}¢™ãõv6»›ÓêÔ"qrb—<s¤Nn³aıŸ¶•Ø<ŠüzÜ~}¾gîZ¦¶öñ˜âƒù*©G¬—ëù|´»¿ËëÇ›Ø ÀUVf¼şËsİrûÖb vwŸßéš]Ÿ„NyöHüi[Éˆ;?×‡äË‡±í,¬ÈÜ4½¨4»}XŞ3 ‹3¹7Oˆ’29±K&ÆwÊç	]29±K¦:xWşãMróæB>ÿì˜¸bïn|<»ñ  ŒìHµeÄÒgÔqĞÆÜ°©@&'v¹|ÁùRTƒÜ½£tØÓ·o-¶û¾!ù53µzIhrÿBq]‘Ç›/eBL«<Q/ï«”;¶Ëm[ŠäæÍ…rËæB¹eK‘Ü¹½Dşº¿R^ŒjOÎvØ\ØOIî‘·O¶ÈM¡ó¶ä¹ˆ:»·µytª `Tu†Gg}×)·ÒôÎ¦Ü¹İ}Gİ¿<×-¯kºª ¿1Oş²»\¾JêfÁîÄqûézIosoC¼}foB¼´ÏÎR¹>¤À¦“Uwl+–gÔÉÇgÛÇ,ê§&ëäõcMMñ§Ü½£T¾N²ıóq†V'©tª `l›‹Gî´ıTxŒg!2fÚ[áöé×I=òÚ±&ùÓ¶b¹6x°kòu!ùòæñfì.ÈùFÉnïwÛâ1¾±Wfj™7Oˆ7Šùö”ÛÕ¤îú|ypO¹¼wªE¦$÷ÈÔ¾¨’<Ø¬”xÃçÆMv÷	.2QÄ `‹¢®~™•:ò®<wåÇÎ?=çh>O<r×¹uK‘İ€Éèù©À(F«[’å=#Ÿ€!„¸/_ë–®µ{îûµÁùrÏRyûd³LŒïöäÕ—çºå‘°*>‡ip÷Ì‘:»úÌÔê¥¤»ŸB €+iZ†?®ösÁÈ÷x_Šj`W~ŒÅÊvvãuM÷änùèL»<Q/ÿ<İÊbİ…™¡ÕÉùFitSAÿC>÷æ	ñt¦$÷È»§Zäî¥½Ïß³£T‹¨—Oã:.+è§jtòi\‡ÜBó»«®œÙÛ;f[)»ñ  kY–Ab®nğ•İÑ?ê¸;·—°0éæ¦ù4Î»Mç&Ä´Ê‰Ü•wGA¿¿Â,õ×ôû+Ì˜ÂcLˆ7Ú;óÅí­[‹äÉC5òal»|y®[¦&~N¾q¼™ÏÄKòæ	û®}ÍÔêİv
++  Õû¥Ğ$sÓôRŞ3pÕ‡åÚQºkOˆiõëñ£ıï·o-¶«‘»B!ïŞì«pıÈº„¦^™®å±%ÄÓqÕ´’»w”Ê“‡jä½˜Vù ¶M8XM¿1OØ[aWØ Ny`,(  ªµ$Ó ):Y•c¸ê³¤{`äî¼_Ş•¿1oØÑo—æo«YûIæ¥ée¿‹úòYÀ½yBTYÌ_úYqÛ–"ùû¡yd¥ßòöR[®§ˆ `4sÓô˜¢“À”áÇn-Ë2ŒøAëÇoŞ\(×RÈÎ“wN¶°(ö³ÌIÓË‰º^i3[ÿ+OËğØ¢ŞbşÒyş^ÈÛ;4qs  ŒnNš^4:	ºPÌÏJÕË¡*ËÅĞŒ¶¾QÇŸùÓ\ù›Bå©ğÚQe7…2ÇİÏçĞ®¶¸lYcáq%ÄG
++z½_n¯Ï7RÄ 0šò™©,ä4º‹;óÓµ:ÙVòk§ØÑ>p_9ÚèìB
++äãMƒûƒGşu†U±&²0Cï²‚>»£_æ¥qÔŠyuæóÛ;Õ¦è¤ÙDƒ;  F•ÔÜ'A)ƒEüp¦¿ó›ŠM£îÊßâã»ò×çË»§w
++¯±Ùİøà<ùäl`rY×åSõ½Òn±ş«3¯Õ£U¾Ë1ğ˜B!¯ª<v J¦&Ûş˜¯Íc7 €1Å6ôJà…üĞ1áF9ÓĞ;ê¯¯ß•9ºáâßõo£t ¾uK‹_2lf¥êeO¹óMñ¶”poŠyõäm;Õhtr¢ÎB! ÀX"k,£Î­:r??]/3µ#í’Ü#wï(õÉEÈ}»Ê.%÷ä¡ší+Ñ,|É˜]îVš¥É‰££	M½£¾	!óJÈŸ¶Ëçlï”¢“ìö~
++y  Æ²¿Â<ânü•ıhÿ4N>ëğÉÎ¼Æ¶_ö÷|1ªaØ£õ7l*É‰],z‰Í;Oafi5[_uäµ[k%™µ'Äù*©›ÂÜ<}¸Öî‘s-&ëLVg  Œaw¹m…¼­y*¼Æ§!/DÖ_u·ïÕ£W5»».$_ØS.S’{Xô»ÜÿT`”F£c;ôµ'Ä3y.¢âÜÜ°©@>‹ë´ë1^Çıx  l/ä]¹Ğùò\·O£®0íX“Ü°©à²_wËæ"yõ(Çê‰ã	JÑÉÖ“tÙ¬ôT=Gí	qw&ÆwÊM¡…é6æÁ½2ÕÎSJ1õ½ò  ØâHµÅæy[İÛ'šGìê®¦u©¿2ïj•Û.ù²âúMò§mÅ2)cõÄ5Y•cJİ€]Újı€,H§˜'Äy,¬Š"İÆI/ïŸn³ë±›¦—#cç  °ÉÙÆŞ1ï¾Û›)É=òÀrŸÜŸ¦ÑÉgveÆoÌ“ñóäî¥ò³ã‰‹˜¢“•Ù‰o´o‡j´Q‘„çòAl›ÜxÅ‰,ruîŞQj×È¹i™(â °Uv{¿L×Úß¤k¬_óÑ™v¹^Å‹·N4øw›”Ğ%7…ÊµÁùr]H¾<V%bZYä·å›½œmì•v‹õßmy]¯µÈ¬Tvç	qu¦&ëä¡½ëN|†—™Z½ävĞ­  ›ÕdNš{üOŒ2o]é÷úFkZ÷ÉÙùÓ¶<¸ëğ|D=MîˆÇvéÃ*l›E_­pùiBÈ…]ùPvåGÊÛK.ÙjKÖçÓä  »}“áBş³øÎËî’«!7o.”ÏvŒyÚà¥rë–"y÷T‹üÓÎ{€„8›9izÙRb’²±ïÑÓÕ×_{d%EûyíX“İ»ñ9ìÆ `¿ïr›EmËû"ëU5[ş¹ˆº1ÿNŸí‡öVÈó‘õòyB—İ;„¸2?%¿sôE0]í	qm>:Ó.7o¦ƒı•¹kG‰|y®›»ñ  xÂÚ<£Û;_$vË}»ÊT± ¹es‘|eÃäó„.y%šQsD9	¸0şÌ(ñÚ-Öÿë®Ó7„øã]ù'VûÄ„Wæu;wãg§ê¥¨‹İx  \äŞ£·bZ¯š»®´Œß˜'/F5Øve ®“…,Qlfèå@¥YjW»ï´X³§ÜÌİyB\Oã:äV•]sw¾Jê¶ëÈİåfŠx  µ¯Âìöû„O®UôÎÅÛŠiXG|n—>¤È$ÃÌ£?ÓØ+sÓØ'Ä©]yN
++¯•ñÁğ×lÌ“7íìT¿(ƒ¹ñ  8åh­Åí/ÎuË=;K¹ø¸.$_Ş=ÕÂÂ”ød‚Rt²4Ó qW»o2YeI¦Çˆ'2Q…M]İ{úÅ¦è$¦¾—"  g¤¶öÙÔ¸Î#{”vÄ~üÆ<yâ`µLMfAJ|?‹2ôr¤Ú"Õú_wéUY$ˆ£ö„8œfW~BL«]Ùš\ÆÍ à´:Ã€Ç:Z?Q¯¨Ï½;Ëdrb‹QâwYŸo¼XĞçtôËÚÂ®¼yì@•Lµ³Á].ãæ  peY9bûÕ¹nyh_…2ºÔo)’cÛYˆ¿M`ŠN¾Í2HtEšLVÙP`äq!Ä»òÏ©óÛ]y{Àht²‡w  ¸Î¦b“Ç=“»äö­Å^?Rÿrt‹PB.dºv°ƒôú|#]í	q`WŞ;Ø?°§Ü®ÇiUAÚÌÖeÕ €‹œmìõÈ=ù¡|r¶CnõŞ}ù›B9RO!ÄeyÚÏîÊ¶¯SıìT½d¶s¤  —ªÔyîüPŞ?İ&×ç{eòhXî!„¸t®üÍ›ı¦¿ys¡LŠ·íX}`ŠNÂ«,ñ  ¸ƒ§îÉ_šW6z|ã¦ĞBùèwã	!„¸ğ®|²N8Xí7…üÃû*lşBü{ºÔ à>‡ª,=^?M£“)É=òøÏ.|
++¯e7BˆËóal»Ü¨°1«îÈu!ùòöÉ›“éz)éæH=  nSÖ3à•yÒ“»ä¥Y|Üº¥H¾8×Í‚“Bˆ[¾œ~x_¥Ïòwl+–¯’zlj¢SßK €»}—cğÊâçıÓmrƒ›w1Æ_¸ÿ%…<!„7åİS-r]H¾O7¹{6¢Î¦Qs;JMñ  xÂÑZÏ¯ÊKÑn½/Ã¦FÎBqk¾Nê‘ûw—ùl!Ë–"™hC“»U9Šx  <¥Ñh•ZïI¼×GìoİR$_ÛpBq&¯kòÚT%ìÆ/ÌĞKa÷â ğ(o¯Ÿ¦ÑÉ{1­nÙ•·wŞ-!„âLï—;¶û\!çö™œØ5æ¼øÄæ>Šx  <-¡©×kÇë¿<×-rÃâçmÅ,.	!„x,O®•ñ>TÄ_¿©`ÌNõ3µz9Qwõ¼øJİ€d´õIbS¯ª4ËÆB“¤µQì àr‹3½·+ÿBd½Ë$¾{ª……%!„å£3írc¨ïŒ¢{ì@•LIùzZPŠNv—™%¯³_’›ûäp•E~)4ÊÒLƒÌNÕËL­^¤ëe}¾Qò;9v €[$5÷ymWş«¤n¹oW™Kçİ¶ø „BE7ú‘ú±ÜÍJÕËœ4½ÌĞõšË³(C/Gk-ğ  ¸ÛùF¯-€Ş?İ&7o.tÉä6šÜBñBŞ>©şQt×‡äË;';Õpa–üüt½Té(â ğ„zƒUf¥ê½¶ z9ºQ®wÁlù»v”° $„â•fÙ]®Ş.õ»ÔOM¶ÿï˜2xg~ºV'ÛJ˜' €G¨4{õXâßÕØu_~¸ÆB÷ï.cAI!Ä;ÓXNµªvİŸw—;u¢-0eğÈ}i7»ñ  xT“É*óÒô^İÍxd¥S#éş²»œÅ$!„¯dj²NîÙYªº"şmÅòyB—S÷ N6³ €W©¶x­ñİĞ<Ş?ï.w¸˜po‹IB!^Ë['šUUÄß¼¹P>ëpúï=;U/e=ìÆ àíë¿-ñâ8ºiLŠï”ö8VÌ?¼¯’…$!„¯åë¤¹a“:FÑİ°©@Ş‹iuúï ÑÉÎ23E<  îP¡µyF	.2Iù(ßšŸiìõê®ü4N¾Hì–GÃªì¾kÈ<!„oçÏ*hzwÃ¦yõh£Kş¾‹2ôÒ`´RÈ àÑµ–‹3^ç¤éåxİÈ3^×å±«ñä¡¹)´PÆçÙTÔß¿‹fw„B¼›£?fî¹ˆ:™’ìü¸Ö ÄÔ÷RÄ à.9ı2]{ùQ¸Ÿ
++Œ’ÚÚ'•WÌ|Ínï—™Z½×CS’{ä½S­rïÎ2¹}kñ˜ÇïÚQâ’…	!„âh>>Û¡Øîõ×…ä;<fw  xÉŠlÃ°#cf§êeE¶AÂ*Í’×Ù/ãÆ·«Ììõ#ö—v~÷T‹<^3j1ÿ§mÅò„B¼~¢ì¦ĞBEñO†×Øõ9”2r¿<Û Í&Ô àvÛKMc~»>C«“eY	)2Éœ4½¢GS’{äÅ¨¹q„bş–Í….Ùe „BœÉ½
++Cw]H¾<}¸Ö©Yñ—fa†^J˜ €g„WÙ>^.àÂn}€Hoo’;¶Ëø+*7…²€$„âõ<V¥˜"şÆĞyÖEwâ§]è³“ÒÒG €§$4õJ`Šo,’>9Û!„UÉM¡…ï"Ş¼™BBˆ÷óÌ‘:Eñ·l.’×5¹¬ˆŸ•ª—¸Æá›Ûµ˜¬3Ëz$¿³_ò;û¥FÏ=  .QŞ3 ³Rõ>³Pš’Ü#Æ¶ËKQòØ*¹wg©|×Á"’BˆWóú±&¯6¼¿1OîŞQ*ïŸnsÙßiVª^N]Ò¡¾Áh•ø¦^ÙVj’åÙ™Ÿ®—™Z½ÌĞêd¦V/³Rõ²<Û ?ä)è pÖªƒÏ7bI!Ä›™Ó*×…ä{m¼ÜÃû*eRB§K‹øcµ)ëãµù>×(óÓõ£^ÁĞèd^š^ö–›)ä pVtÅg×B!JÌç	]ï\mp¾Ü±­X^=Ú(_ëvÙßenš^¶–˜d}¾Qf§êmZChçj¸K €k4­2?]ÏB‹BqcnÙRä±ô÷í*“W6ÊäÄ.—ıù.4¶Úy·õŸ™›¦—-%&©70š  —RÒŒxB!Ä×òY\§\Ràöø§×Ê'g;dª‹ÿüfÈØøkSt²(c°€/êê§€ ÀÊz7#Bñ•¼z´ñª©®Ì›
++ä“-nù³hl/àç¦é%¸È$q½Òlb  ·ÛSÎ®<!„â<Qç¶nôŞ]îÒ#ôúÓµ:9Rm‘V³õÿ±¢ ÀƒšLVYœi`ÁE!„¸8?Tãòş®í%òá™v¯ğšÁÑr'ë{Ù} À[’šûd¦–#ö„Bˆ+óàŞ
++×ğÁyrÏÎRùçéV¯ş}†Nğ¥èdwãä  ğº4¾#„B\š{v–[”Ûºû~Ã¦y4¬J>>ÛîòFv&0E'!E&Šx  ”b}¾‘bBqQîÛUf×®ûµÁùróæBy`O¹¼r´Q¾HìVÔß‡"  ªÖÈÒ,îËB!î8ZË–"¹{G©<´·B=R'¯k’·N4ËËÑ2!¦U>>Û!_%u+òï”¢“­%ñ  (RAW¿,Hç¾<!„âlŞ>Ù"·n)’[·ÉSá529±K¦&«ïï˜¢“}Ü‰ @Ñ4-}2ùò„BˆÓy9ºA>ëPÌwGÜí.§ˆ @’šûdÅ<!„â·	Ğè$´˜ãô  ¨JJKŸ,Ì ˜'„Bü1Ü‰ @¥ò;ûåÛ,İì	!„?ÉL­^"ª-ñ  ¨Ya@~Ì7J`
++‹B!Ä—Ò¯Ï7Jµ~€"  _q Ò,³R9jO!„øâ.|d»ğ  ø¤ô¶>Y“Ëî<!„â+™—¦—üÎ~Šx  |İ‰º^Y–e ÷ç	!„•fAº^r:(â ğíë¿%7÷É¦b“,Î4È-E=!„¢–,Î4H.E<  ~^Ø›­ÿšİÑ/1õ½²¡À(Óµ,’!„%æÇ|#<  ¸œ¶µBBQXf¥êåP¥™"  \í»&B!DAYše*£å  À0RZØ'„B””õ¥  £YËn<!„¢„¦è$´ØD  F–Êİx›óÙÉZ™p¨@&*ÏNÖò˜Bqi¦ku^e¡ˆ  £[›gdñ4JŞË•¿,Ø&˜0W~ûÊ”Ëò‡	såÛäİ¹<V„2B&ÅÔËkÛ4òôúcòä÷‘òÜ†yg¶LÓôğø\’…ézImí£ˆ  £Kkë“ÀÇı¦øöúÉ±MrÿÜÍWï#åş¹›eò™f£„r!¯nK–;¦®ñ}ówoÉƒwÈGÑå~ı8htRÄQz  `£uvîÆÏKSÖ3 š–>ÙZb’¥Y	Jñ­EÕû‡‹äÚ¿±¹ˆÊøÊK¡	,à	!~ç~9-×ºÔ®÷Ï'×Fùåc5'MÏQz  `;{A):ù!ß(E]ıÃ.6ÒZûdE¶Á'vè?=^#üç<»‹øËvçç„ÊÄSu,è	!~•—7'ÊM“V8üŞùàÂ~µÿ}®Q
++Gø\  pªˆÿ&C/ÑµcïTêd[©If¨¼qŞŸ¦­wªˆÊ¼6Mşöİa÷„ŸÏ?Ãå]òŞùèò0Ÿ¼f¥êå0»ğ  ÀEüL­^Â*ÌÒ`´ÚµØHoÜWãâêÅMñ.Yˆ^š[¿\-oïÍd±Oñ¹L<Y',Üîò÷Í7v¥ùìc¶"Û 5úŠx  0¶£UTšm:ê7]«“-%&©7XZhl-19ÔHÏ›¹å‹ï\¾ 
++»ó„ßI<¾òü×›Óİò~yë—«}î1›ÁX9  `«¬ö~ù.g°İX÷×¤»¾áNL}¯ÌNÕ«b‘õÉ±*·ñC¹iÒ
++yÿpE !Dµy1$ÎîFvä½y>ó˜­Ê1HNwá ÀÚÌÖÿ·&×hSó¹­%&)ëqß1¿Ü~™›¦übşåÍ‰n_˜å©µÑ„Uå£èr¹oö&½O>¾êê³éz‰mè¥€  c+ì,œ®82eQŸÖÖç±ÅEZkŸLWx¼'×FylúÛW¦ÈS×ÉÇG+(!ŠÏ“ßGzôıñ·¯L‘;Ríã5;U/Q5£  vø¥pp'>(eğ¾ûí`çù­%&I÷`ñ~¥0îè{3O|wØãULQ~ŞÙŸãÔ89grã¤åª{¼StòsÑé3  À%·ôÉÎ2³œ¨³H^§²îä­ÊQn7ûg~:á•ÅêĞİùwÃr)!ŠÉ#ßî÷Ú{âo_™"7NTO!?S«—õùFÉğâ—å   n“ÑÖ'A
++ídÿöŞL¯.ZûÊy`áv™Ó@AñZ^Û®‘›?_éõ÷Ã?ü¨èÇiºV'K³r¼Î"-&ë7|Â  Ÿ\dRä¢ljR·üî@¯/^ÿóõ ùûšù*¡¢‚âÑcô÷ÌØèõ÷À¡<¶â "wŞ—f$ªÆ"U:fÁ  ?RŞ3 Ø]ùnWÌ"öæÊ³?Ÿ¢À „¸5Ÿ¬•‡—ìQÌ{ßPŞÙŸ£ˆÇga†^Öå%®±WÜ}  ~laº2ÇÑ}]®¸Åì“–ËK¡	„—çÙŸcä?_PÜûŞÍ“Wyí1	ĞèdNš^öU˜İ:š  @ue(w®üSk£·¨¼/º^Ş;˜OñAq:“c›äŞÙ!Š|¯ûí+Säµí))Ø‡ûï¾ÉĞSÀ  \©Ñh•9izE/rZ´K±ÜG¾İÇıyBˆã'¢Êäº+ö=îá%{<2&n¸ÿ~Y–Aêñ   WÉïì—éZå/v_yH±İ?L˜+/oN¤(!„Ø•×w¤È½5]±ïm÷ÏİìµÇf~º^ÚÍÖßğ)  0Œ¸ÆŞwC”7’.Knøl™b½÷ÌÜ(“bê)P!6•Sê{Ùo_™"[îµÇ&0E'É-Ì€  ÑJó°w•š©É=òèòŠ]üşÇkÓä©uG)T!#æù±Êİ…Ÿ*ï.òêã³$Ó@  0š…&U.„ßÙŸ-·}µF±‹á'.—×wh)Z!óùéFùó¼-Êì÷±l¿|z¢ÆëQ€F'»ËÌò   £Y•cPõÂø¹_NË'ÌSlAgàO^ßİ"„x;=òÔº£Š-w÷ôòQT™×‹÷¡ÿ{ºV'9ıò   £Qêy{2étƒbw¹.íüüuB!~–W¶œ“kŞ_ ÈÙğoìJSÄü¥ÿÿ7zŠx  €ÑTédVªŞgÌ/Ÿ•?¼7G±Åüïß-/Ÿ¡¸!ÄòñÑ
++¹3ğ'Å½]óş|y)4A±Û†B#…<  Àh2ÚúT1zÎ|z¼Zî
++úYÑ»ó·}ı½ü3¼b‡½¯Ôq™¯<$S“{ûØ¦èäLc/…<  ÀhNÕ÷ªªc½=ùÇÇ]Ì·Ÿr®‹â‡ÈGQåòà7;å?_TÜ{ÍíSÖÊ%Šg¥ê¥F?@!  0šİefŸ-ä§itòÉ±jùSÀzEóxo<¿‘ãö„¨÷}¥<¸p‡"ß_şçYòBğYÕ<–«s;  0¦ò~±Ğ~!ä¬ü÷[3]Ğß8i¹¼µ'ƒÂˆ•äË¸VylÅåÎƒŸ»Y¾ŒoSÍã ÑÉş
++ÆÎ  Œii–Áoİ“bäá%»Üşîé¿È‡‘¥J„(|ìå&ÌUä{È½9]U»ğ—Şgì  ÀšMV™›¦÷»ø[{Òåö¯×*¾ ÿëÒ½òUB;E!
++ÊkÛ5rÛ×ß+ø}cLŠ©Wåc;]«“V³õf>  F‘ÛÑ/3´ş» æ§“ríG‹]ÌÿÏ;³ä¹_NS@âå¼w0_î™±Q±ï÷Í	Uı$ŒZ»ñ   cIié“ è_!ÿıöLEôwLıA>8RLAEˆ‡óÅÙytY˜bßnırµ¼¹;İ'ëìÈ  Œ-®±—…ú%sŸÿºtŸâÛ?º<LÑ3 	ñ•L9×%O~)xobß_yÈ§óÀtrG  `T[KL,Ø‡™ıçy[]ÌÿqÂ<y!˜qu„¸#Ÿ¨‘¿­
++Wü”‹g~:ás}`ŠNâ{)ä  F³0CÏÂ}„¼¾S+×²TÑù{gË'Çªx¾qÅ—xÑåòğbåOµøí+Sä¹¾Û7ƒñs   £(îîgñnCøî°¢ôÿõÖtynCÏ!Nğ-Ş¥Šş¿Şš.oíÉğéçã‡|#…<  ÀHVåXÄÛ˜	óå©?({w~vˆ|q¶…ç‹›ïÀwÊ#ßîSEÿÛW¦ÈÍŸ¯”÷ı áåÒ,…<  ÀpŠ»û%nõvçÙŸOÊïß­Ü»óÿœ'oîNã¹"dŒ<¿ñŒ¢›Ø]İäò€ß<7³RõÒh´RÌ  \iq&»ñÎt·Wú1Ü¿­
++ç¹"d˜¼¸HnŸ²N5üíSÖÉ[{2ıê9
++JÑIvë  .s®¹½+
++‚#Årï¬`Å wş$Ÿ¯á¹"äBY¶_5ü5,ğÉ®ô¶$@£“¨…<  À¥¾ãn¼KóÚ6Ü4i…"‹?L˜+/mŠçy"ş=bGŠÜ8q™jŠøÇW”)I]~ıœ…™(ä  †$4õJ {·äïk"ä?_à~-!
++êF÷Œ_TSÀß3s£_4³³%Ë³ix  pÑœ4æÆ»3Ÿ«”?ÏÛ¢È"á¶¯ÖÈÄSõ<OÄçóéñjùË‚mª)à¯ÿd‰¼r–çî’ÌNÕK«Ùz3ŸÚ  Àïq7Şsyuk’"ÛÿñŸóä¹_NóŸÌ‹›âåº©ëü'xî†»'Ÿ¢“²vå  æ±ïñ<±úˆü÷[3W@Üúåjy}‡–çˆøÆøZùã„yê™?y•¼HïŠ1IÃ;  àï"ª-,½8®îÁov*² xxÉn#¢úŞj:BÿbHÏ›YÁ=y  àï¤³ïíL8T wmP\qqßìM<?„"ŞùW§ÉÓëñœ90†®¤›ãõ  ÀO…U˜Y*(¯(ğşü£ËÂxnˆªòÆ®4Uñ]ºW>;QËsæ`–d²+  üP“ÉÊbP©»‰ßG*ªàxgÏQMnœ¸\Ñü½³‚åŸá…<W.Ø•Ïéè§˜  ş%¼Š»ñŠsU&÷Î
++QDáqWĞ¢Š¼¶M£Ü{ğŸ.•7v¥ò<¹0KÙ•  ş¤Éd•ZjÈK›âåúO–x½™x²çƒ(>÷Ï	U\ÿûwgË3?1JÎ]‰oì¥˜  şaS‘‰ Êò·Uá^-Fè¨MÔkŞ_ ˜şæÉß×DÈ—ñm<7nÌJ:Ø  1SK§z5æ½ƒùrÇÔuŞiz·ü ÏQt¦$u)¢€¿á³oå™OÈ”¤.İ•Onî£˜  ¾mC‘ÅŸÊóÄê#/NX¸Ç(:_Æµzµ€¿qÒryu[2Ï…2]«£  ¾«¨«ŸEŸÏŒØJ•ë>öÜİù‡ïæq'ŠÏo_™êcôÿœ'¯ïĞòxó®|wå €
++án¼ï³?'·OñÜ1û§ÖEó¸ÅçúO–zuWş¾Ù›dRL=Ï…² ]O!  |OQW¿°ØS}>>Z!-ÚÉ,yB†ÉC‹v)¢ÉİK›ây>¼#ÕŠy  à[–gXè©8_Äµz­sı¾Às@T‘wÃrÓµş¡Å»ä‹¸Vf!»ò  À—võKP
++‹<5fò™fybõùı»³½VŒÿ`!ÏQMîüY1Åü5,—Cx^<˜Èvå €XšÉn¼Ú2ñT½<øÍE#÷ÍŞÄsBT“#Ëä?^›¦˜bş·¯L‘?Ïß*OÕñüx(-&ë7|ò  U;×ÜÇÂN…ãåşû­Š)BZw”ç…¨*¯l9§¨Bş·¯L‘ÿ~k†¼¼9‘çÇ9Ì]y   v«rØWK^Lş8aâ
++¢Êx~ß±R^‰“'¾;,.? O®’W¶œ“·ö¤Ë§'jüò1yu[²üî@Å½Z¼‹ŸY7gv*wå €ŠÅ5ö²¨SAùñ„üaÂ\Å¿}eŠÜô³ß÷{jm´<°p»Ü7'Tüf‡üã‡£2áP¢şœ/…&È-_|7æóxı'Kåïk"äËø6¿z?=Q#wL]§¸×Õm_/D”ğşçÆl.6QÌ  ušŸ®gA§äÃ­IrÃgß*²€ŠÒ
++Wwæí½YòÀ‚mrÍF}Lnœ¸L^>ëÕ?ë¤˜z¹+Èş¦n¿w¶<±úˆ|ĞáW¯µ§Ö•ÿxuª¢^[¿{#Ğë?G¾œY©zi7[ÃJ   ¨J|c/sãÜ‰Ş³àí¾¿6ÚçŸ‹Ïc›ä‰ïËø:pZaƒ|ÛäùcôÑríG‹œuşÜ†Ó~õº{ÿH±"wçïŸ*OÕóŞè†l+eW  ¨Ìt-‹8%æ¥MñŠ¼e[qĞ§Ÿ‡¢ÊåÏó¶8ı8İğÙ·íFşub§ÜğÙ2—=Ï·|ñ¼¸ÈÏvç£×ÕşwoÉß¿”©Iİ¼Oº8å=ó  @WYXÀ)°Ùıs7+¾€ÿ¯·¦Ëó¿Äúü1k—ŞwşjÇşì-Úå–çıÑea~õzœÓà’/r\?¼7ÇïNJ¸;[KØ•  *±€»ñÊêFÿãqÅİÏ©˜óÆQq­>\$7MZá–Çî‰ï{`>z©[Ÿÿ[¿\-æûÕkóõZ§¯)¸#·OYëwÏ…»”¢“zƒ•b  (ÛÎ23‹7Åß.“[¿\­øşÎÀŸ|şxõÛû²äwo¹í1üÏ×å‹³-nı;<²l¿G~^Mğ¯±Mr÷Œ_ùÚ||åAŞK]eY
++y   \F«¦°hSB\¥øşŞ™%/mŠ÷ùçâ…³y<Ÿıù¤[ÿ×ºÔc?¯ïÔòšUHn¼JŞÚ“Éûª“»òeÜ•  JVÁn¼·óÏğB¹yò*å£_~@&Ÿiöùçãµm=¦wOßà¾&w	ıùøï·fÈ{òüîõ;áPCcı<‘¿yàú†/g}¾‘B  (O½İxoçñ•‡_Àß8q¹ßÌ†ÿ0¢T~ÿîl=¶ã?Xè¶¿Ë§'j<ş³2şƒ…n¿. Ô<ûsŒ\óş¾~—±;ïDÒÛú(æ €²l*6±PóRŞÙ—í¶&j.¿.Úo“©Iİ.ÓfÓ±7ƒ|ªÿí+Sä…Ûıöuıe\«üuéE¾–ÿºtï½d]»ò  @AÚÌÖÿ3ƒ¹ñÏg[äÏó·*¾€¿oN¨|QâWÏÍ#ßîóøãüßoÍpÛßgÊ¹N¯ıü¼¶]ãß_ÔíÏQäu×ºTŞÙŸÃ{±)êê§˜  Ê°*ÇÀÍ#åşë­éŠ.àoŸ²NŞØ•êwÏÍ+[“¼òxßğé·nı{İ8q™×
++F^ó:yty˜2ïÎ¯
++çù±#sÒôò  Àû
++:ûYœy¸™İíSÖ)º€¿á³eòbHœß>G×}ì¹à™¿ÕÍ=ÒhÍÛsçwhå†Ï¾UÜkş¦ÏWÊ»a¹<G6$@£“ÔVîÊ  /ÛP`dqæ¡<±úˆ¢øñ.ô«{ğÃåÅ8¯=ş¯nKvëßí“c•^ıùšxª÷¡İùeÊÜpá™r®“çhŒ,Éd®<  ğ¢Ìö~	`Qæö¼¸Hî˜ªÜ]øk?úFü>R¦&uûüs1?İ +sÍ²¶À"?õJpIße¹ó«ï¼süüÏ?äÛı^íµÀûÁ¯y7,Wnş|¥âŞ®ù`¼šÀs4FNÖõRÌ  ïX‘Íİx÷¡:¥ØşïÍñù#ô³Rõ²<Ç$!¥}²¿Æ*Ñ2b–Çxí¹xeË9=&·|ñ×şæó¾pYzä…Ûùşpë—«åõ)<G#d)»ò  À
++»ØwwGúûfoRäıwoÉ?~8*_'úæÚÅYFÙPÜ+»ªF-Ü¯Ì««v{åùxxÉ±Çá%÷È‹›âåş9¡rÃ§ßÊïß›#˜0Wnú|¥<øÍNyc§íM	'ª“'-÷Êßõ¡E»xaîüo_™ªÈ÷‹?ü(oíIçy&gÙ•  ¶ ]ÏBÌ™Ó O­;*¿w¶"ø'¿”Égš}¶x?Pkµ«xÊ¾Rƒbç¬?½ş¸üş½965)|uk’m3ÎãÛäş9¡^¹ÆÁûÄğù0²L‘cê.^˜½I>9VÉsuI¦kuÒn±ş†  ğˆ¸Æ^anèFÿĞ¢Š]„?¼d|q¶Å§óo2òKI¯t°x¿4s§zôùøW§Ê?~8:f±}WĞÏvÿ»ÿºtÍá;SåÎÀ=úwg6ï£äo«Âİó‰ÕGx.ÉñZ»ò  À3–dr7ŞUù(ªLî¬ØE÷—Ë›»Ó|êÎûEï¼”÷Ö{¦xºæıòèò0™x²nÔ¿ç”¤.¹õ«5ïô/Øf×ãúyl“¼¾S+ÿ>R~÷F sË½œwöeËm_¯Ø÷•;”¢Êy®4:™©e®<  ğ€èZ‹/dâÉ:yğ›ŠŞ9{lÅßi,•m’­åı.-Ş/ÍƒAëÜÚü‰ïËGŠmşûŞ?w³Ó¿ïSk%8ñT[İß33˜÷óÌO'å6\«ğFşëÍéòú-Ï“F'»ËÍó  À½æ¥q7ŞÙ<¾ê¢øÛ¾ş^Ş·£hTr¾Ë3ÙmŞùŸ7ƒÜò\<÷Ëi»ÿÎ¯mÓ¸ì÷ÿäXµÃıÃKÜÓüïÁéë%¤´O~(´È¢L#ï)6t¶bõù›~FÍã+úÅèÊÑ27]y  àF'ëzéTïD^ÙrN®ıh‘bøß½$Ïş|Rõó­^ÖZ$¼î¼ÛøèF‘ıåF·<]ºÏ¡¿ÿmN©wæ¾üpwô¯ığ×­ŸûËeÿ‘úó²­¢_ÖZdq…ıHùäX¥Ü;;D‘ï=ÿóÎ,yj]´Ïõá°'{Ø•  îĞj¶Ş<SËn¼#ùìd­bGÉ]:"êÓ5ª~œf%´¬O"Ä#üPB³šİòœ|YfÏ…èr—ş~ÿŞ§“ç‰uùãòÈÌG}>ÂëÎËæ²~Yg–9iôó¸2/„œ•kŞ_ Ø/_yHõïE$@£“jı Å<  p­ıfÁÎwşŸwf)zşùgTı/Ï1Én;g¾»2«ãJ]ßdpÒr‡‹ç~9íò?‹3×,^ß¡uûü˜'&j¬²±¤W–°[YsÂ?ÏÛ¢è/ÿ¶*\>mò«çeg»ò  ÀÅf§²oï8¹;RôBùŞYÁ2ñT*ßÀ¬É·¸dtœ³Yr"×åÏÍÓ~pèqyäÛı.ÿ³¼²åœÃÏÓ£ËÂ\şçyyÅ.‡Ÿ«#õç%´¬OVäòÅä4N^‰“?L˜«à/å±åóÓ~3W¾Éd¥˜  ®±©ÈÄ¢×ÖFcÛ5Š'7tõ¥Ğu?MÑÉº‹©?ïõ~(AûÏ¹ü9úó¼-=>,Üîò?Ëóc~¾®ûØõ=!^_½×%Ï[DÃàü%YşışöUB»üeşVE¿gıÇkÓä…Ûåí½™>ÿ|¬Ï7RÈ  çÕè$(…İ–x%Ïm¾Øñû›2)¦A•ñš|Ï5°óv!ÿğ’İ=Fîûæè—>)vËÏğç[O¹ü9<Tw^ÖZd~ºÿŞ©ys¢bGÕ]vídâryek’Ï>A):©á®<  pÖ¶vãÇÊK¡	Š_üŞşõZykO†jïÀ‡ÕXWÀeÊî8×7t[¶ß¡¦ŠîøÙqtGşñ•î³¸êl‰[ŸÏ-åı²"×?ß÷¾8Û"÷ÌÜ¨ø÷³¡/%Ù•  FiÏ …ºgv»#ÿùZ€<µî¨Jg+dky¿bx¥òOÿxÜ-?C/†Ä94»üŞé–?Ï¾2ƒG×}5Vù¡Ğ"A)z¿Üÿï·f(¾˜¿wvˆÏ>Ùíıó  À1?Ğåy´L:İ èô÷Î‘£+TùØşPh‘ˆúóŠ/â•TÈ_ÿÉ·ü=°p»İ–‡írËŸå®/–{üùh8/Kúün”İÄSõòĞ¢Š/æ]Æ®<  Àjı€L×R¬–¿Ù©Ø‘rÏmˆQåcúm¶IöV¨¢€WR!ÿŞ<·ı<ÿp¡ÍVÈ}³7¹íÏòIÈQ¯>×[ËûınŒİ»Rå†O¿Ut1ÿŞ<Ÿ{ÜSt’ßÉ®<  °ÓâLÅúhs˜O7*rA{gàOòQt¹êÏÙiÙ\Ö¯ª~(s»~Vú­_­±ëñû³›»¿³?gô»Õq­òğâİnÿùv÷ıx[³»jÀ¯îÑOMî–ÇV”ß½¨È÷½{fûäã>?]O!  l—ÕŞO±>Fß«¸Åìc+ªpn²^6÷ª²€Êìp­Ww?Œ,óÈÏ×Ágä½yònX®¼w0ÿâ>¿ñŒ\óÁ·ÿş·|²HqÏı¾«|—ç?3é?=^-·E‘ÅüäØ&Ÿ{¼4:Éä®<  °Õê\vãÇœ×½`›b°×ºTŞŞ›¥Î{ğçU]ÄG7Š¬Œ-rËóúÇ	óäƒ#Åc>wş¤Š.ãNÏÿn¯bÂj¬²&ßâ7ïD”È½³Bõóñê¶dŸ|¬—f(ä ÀØšz)ÔmÈíSÖy}áúßoÏ”§<®ºÇne®YÖZU_ÀeO‰Îí×%^
++M)I]W=–­8èEüo_™"+c‹ÿ³Vc•ïı¨ 7,Wî
++Ú ˆŸ¿¯‰ğÙÇ9¦¾—b  ŒnY»ñ¶äÖ/W{mÁ:şÃ…ò·Uá2ùL³ª³o2²«rÀg
++øKsÏ—+<òÅÍƒ·Ës?“¿­<(üç<¿)âïûú;Uı<ìó³úg~:éõŸG&=°+  |BrsŸP¤Û”;öøBõ©ëä¥ĞÕ=V3Sõ²¹¬Ï'ø¡¼²r·ßÕŞÈ—;bÕyZ£j@VåúÇú†Êµ-òÚÏÈã«ùôãÛÀ®<  A`
++º­ytY˜Ç¨7}¾R^ß¡Uåãô}¾E×Ÿ÷é">ºQdat&·›rÃ‡ó%²^İW1vVÈ·Ù¾ßåşËø6¯å|!øŒÏ?¾¬R  ÀUNÔq7Ş¾ÙÊin_˜^ûÑ"Õ.Nçgd[E¿ÏğC‰j8/ÿ¥ĞÑ\jÏ"}æçdsY¿,ÈğıëK/nŠ—?şs¾GN>Š*óùÇõx…b  \naºİÎŒÿp¡ûî{~»_¦œëRåã²¶Àâ7ü¥yvÉ
++oçš÷fË¾2ƒÏı¬l(î•éZ_Ïí‘§×—ÿ~{¦GN-ùÃgÎœ4æÊ €Kì*3S˜;g>åòéí_¯•wÃrTùx¬È1É¡ºó~YÄ»s?gv¸Ög^Õ÷‹÷_Å·ËÓ?—?L˜ëÆcõgıæsg{©‰b  Œ×a±şfN»ñ7½sÍïÿ|=@X}D•APŠ^vUømiZGî¢¼±f¿_üÌì¬o2~ğ~Ù#/Ÿ‘ë>^ìÚ& Ó~ğ«Ïvå À¸qãÆ«d7Ş™L>Ó,7NZîÔBôîéäãè
++UşıWç™%²~(ó"Ò(Â]¿L[#Qşuºã§"ÿéSòôúãrÍûœ¿zñş|ùôxß}îì*3SÌ àÏjôŒ›sE1Û$
++øÑîEèm_¯ÚcôóÓ²‡]øaó÷ùÁãNä–OÉ®¢n¿üÙ	«µÊR?èn± ÿñ¸Ã#ë®ûx‰|Qâ—Ÿ9Té(æ ğW;JMâ.Ì3?kŞ»SóısBå­=éªı{ş\ÜKÁ>ÚQéÂn¹şıyåä÷oM—µ‰~ÿ3´©´OühèK›âåÖ¯ÖØ~bcÁ6ù2®Õ¯?ov²+ €j3[ÿßt-Å·;òÚv<¼d·Ü>eÜ8i¹Ü<y•Ü;;D^\>9V­Ú¿×Òl“ì­fŞ–Ì=’Jangîœ¼LÖ'Uñós!k­²"Ç¿¾lı(ª\]&×²t˜qœßÈÃKvËû‡‹øœÑè$0E'F+Å<  şfUÅ±9Ø…·;Ÿ…§@·1ÍşYÂÊüÜ“Ò>	Lñ¿÷œ/ãÛäã£•òñÑ
++ùâlïÃÃdM®‘B  RÚ= A),‚ÈØYœe”½ÕV
++*óŞúp
++õ1òé¦cü¬Œ‘ı5VYÃU(ry¦kuRÉ]y  üÇùFAdÌüPh¡ˆrAŞZFÁ>Lş:c½¬O®æg„ÎöÄ‰|Ï®<  ş!µµÅcN±¹ğ.Î§›)®¾é£^ù}ïš¼\ÏáçÂÁìª9i\"¿&½­b  _·&—İx2rVæšåpıy
++&7$p_¢üçkÓ¼^Àÿ×ë²èh¶ì/7Ê›ßï÷èïıqp4?.HdƒÈª<3ïYD¦it².]y  |ZNG?‹ÂX9/fKN›<6ûg¯ñwL\zÕx·…İòÖÚ0ùW§ºí÷}cÍ>ÙßÁÏ€‹\Â	+2˜ìö~Šy  |ÕìT=rUfhõ²½¢ŸÂÈƒ™º'Nnıt‘Ç
++øÿy3H>Ø!GêF¾2Vn”Y‡Räq}Ñp÷—+äŸ?‘é<çnÌÎÊ™ŸÎQûá2/©KBÏ6ÊÎ3õ².Ş·;ß/ÌĞSÈ à‹šh’D®Î¢L£¬»+}\…YªÎU‹îX®˜#3¥ûx¾”kjåT_ 8“å1òÌ¢Ín+àÿóµiòöº²·Do×Ÿk_©A–Ÿ.”’ä½õáòìâ-òoBåÑY?É_g¬¿ê?ŸY¼YŞü~¿|rTFg2JÎÃ‰h8/ßfÓÕşâŒuM$(•ğ´ËÒ™#ÛÏ4xôÏrüT¥ÔGæŠåpºèdJşÑBÙ|¶Ñå¿O€F'ÚVîÊ àsæ¤±O.ÏÒl“±á>|VN›ô_± Š)*[4E=SNæ@…Y¾ŞuV
++Zç’şö‰Kdò¶9XÉäÊºïm”Gçû~5”Ó'+ÜşgXr®Cj£rGü3œ9Yî†F¥ìÊ àSW±¸#—gyÉ¦Â +§mÔñP1ª–yWåç”ZùdÓ1ybŞFùã;3í*Şß^w@~ÒÔğ8úó½ùRÿ¾7Ÿ~¼xÌ÷¬ğ49Så¶?Ãw	mÒ‘=æŸáàé×Ÿ ¨µPÌ à+¦³O~Íš|Ûvi3ò:lZ„§I™¦"ÊMÙ˜Ö ËNÈ´½ñòÁ†HùçÏGdÂO‡åİÉ¤Í'dÉ‰\9Paæ±"³­¢_f©¨'J¦Ç%ÿ-gl~ÏO“]gê]şwù)¾YºdÙôû·Gd¹ş$@¦B  _p ’EjJH\“¤/‘úÈ\©‹ÌíñÙ×ì²ÿê<Û
++>mA·ôN·yAÜ}"ŸŠ%]×¨µÊ<…6ÁJî‘Ã§k¤**OÌ‡3d <MÌ‡Ó¥èhS÷Ç›"sì*äÍ‡3deb›Ëş^bkG¼†4R¾OhuùãYÍ®<  ªVo°J Å±::Ç'÷ˆöxÉˆ‹½³.¸O¹&ßlãqúv»¢áibÌ¢xrc6Šo9Ñ$r²Y$¶E$©]DÛ!’×-Ra©3‰´ZdRg¯üfè= ½Wşo£Y¤Ú(RªÉïIïIn‰k9İ2øï;Ö4˜£<Ö¾Õ¯^yMğœ®–#™£ßa?eÿöÄev¿o„§IuTKºãÛz¤ÿÊ„º©ñ]«ÙúÿX  Rû*Ø±¨Mh•ƒ§k$2¦ZöÄÖÉw	m^û³,Hê”Ê¨¼1|G¸Ó¹4Û¶;ñåšZ‡£ı‡Ó)œ\œM"‰mƒ…z¥A¤Ù,nÛek6‹Ô¿(ìÉìIh,ò6şú…¾úÕ(²"Çdó{ÑáÓ5¢9Q*I'J%,¶V¦'÷¸ì=w¬&t—&Æb~óÙF‡Ş·†¢=^âğßkÇ™z›Ò—u	î‹UÃ®<  ªÔ`´Êt-û•Y|®Cò» *<Z(ËÛ=úçÙ|¶QÚlhŠ4&½‡Óevr·İ¿ÇüƒD4ŒŞ>¡Ì(§
++^ŒRÈ;ŸcM"gZDrºEÚ{å¥¼—´Yä®bHn·H›EîÊë9ÛJQ¯¶¬Ê5¹SŞ~õuš#™²ÓÉ»äÑ1U½¯l=;ö¨¸Õ	­¢c‡ß–DÆTÛı÷Š?YîÔïÙé†;òOyiuÒn¶ş†Õ  *ós‘ÂıŠl=Û ¦÷1GJ×‘,ó,ímÎ4+U?æœø‚ô&§Á¦¨lŠ%ËŸh9×6¸ŞÙ+ÿKmï35ÆÁ{Šzudíãély/²¥¨®‰]Ö±b‡ßWÚ"²eÆ('–%¶ÛüE¨«¾8˜¦ÑÉº„©±áÕX9ì†®õ—f[©‰]y  Ô¤Ş`• 
++÷K³?Öö#ãGİúgÙ×$u£Ì-éÇ‹íú½öVŒºß[â’p]B…’ÅûÉæÁûíez‘®>ñ™³ôN
++z5äÇ¢ŞËšÎå+²é5Ş™cßˆËÄv—»#Í[_ØnÓˆ7{¢;’)KÏu¸åtÁ•I8QæöÏ½Y©Ì• @UVç(Ş/ÉYv¾W%ºçÎ|Ì©
++§€ó“ºl»»Y1ül÷cç¾?â¢´ÌH‘4Æ±ùäv‘r½øôÂºÍ"wmåùVzBJûdñ¹©µóÅqM6½÷üß,NÜ¿2‹¯(®—%¶K£êm¥?BCÒnÉpâtÁ¥9yªÒcŸ
++Œó  ¨AF[Åû…üß"5î|G8p_r´„mtxşÊDÛĞônCqïˆéG]» ÎÉn¥8¥a¯ïÃ)ÖşİùPfÊŒÒ}Ôş÷£p‚ï<SïòâúÜ%»×ëã[¤="Ë-EüP’O”^Õ¨¯ÖEïß‘.şl±%%İó  (İº<îÆOÓè$"¦Ú©ÅVitKşßœë”Ôã%.]d6qÄu¸Yñ§«z¥.¾Âe†Ş#ÒW.çJôF#ìÀ×ÅïÏç¸?¯¸¤t‰%"Ó-EèØZ·×KÎuÈOñÍ.ilgKœü»Ç5‰aŒŞ*¶Är8]öÅÖyåó0´˜»ò  (ZJKŸßÏŸ›Ô%™.:ş8Ö]É±~ºÆ%Àá2Ò‚p¸1sÙÙm/Ü‡KFnÑ(9×F©Â‘SÍü\(!ùÍN½öSGÓ¶/¶Î­…õÙ“åb>œî‘"~(a.úb¢6*W¾OhõÚçb`ŠNŠºúy_ @©æ§ëıºˆß×$í.l~tÌÁ¹í!qR™ëÖæp»òËsLuÉ¢ıTM¿4-s]#¨cy’\¬£ å}«EóNtµ‹hénïİ¸¢/F{DöˆAÜ]T[œ(â#NWK‡vò¯LÜÍú<U9
++y  ”Èßwã¹¨“ğ•£ìšÛ›Ü#I'J=¶@¼ttÑ·WìÄ§åw‰1Êu_jÔÅWÈÉÚ
++¢¢í`ŞY]ƒ×ø™ñà5úó.ıBoÇ#0Câ½R ÛÛXnÓYÏş9›#slnè©]ù²îÊ  8şº?'©[2»m1vĞÆ9¿ÛÏ4¸t±m»cYƒ;-¹—ß‰/Ñº®ÙTßátÉÍl¡ !Ç›Dj¹o—
++Ãà>~~ÜŸ¸
++“tœ,téûÎ¥ıC6Ä5;µS^t´À­ï‘1§*.{Ÿt²wŠ=Wf%w+îóòÛ,vå P”Èj‹_ñ¡g¥ÃÍİ‹‡Šå‘2;¹[’=¸e’âk~-*ë­RïÂ†v­§‹ål…™‚h„œiéì•ÿÅ;ıZ,’u¦…Ÿ!w&©D/Æh÷|¹×$ß&¶K—#æ/t¢Ï;Zä¶;õÃ½g»ºùè•ÇÿÃbkı¹™ÔÜG1 €Røãnü©S•^9Â~i~‰k’fÎ2ÖÉ´»Û~ßát9Si‘3•é<éšİ­şÃéRŞD14B6Šdt²ï
++çÚøyrËUÂné=’á¶÷ÄÒè§Æi^:Şó—¸&ñC©ŠÊsùïYt´@¾MlWügçŠlvå P„İåf¿*à—œë‚£…İõî>’)3®8&yä´khf+–I2M£³ûˆ~]B…¢s\vşL•…bh”£ô¥zŠxWJéàçÊ•ÉÈë~ßYßuÅûi”Gç»ìßmC“ÒU‰mbtáD‘„KæÜ«!g{y À›ŒV	LñŸ"~l­K_–ÃéÒ`çNúĞB-HÓãÒ£™Y²çŠQrîœÅ<RzçIZ~'…Ğ(9ÙÌ}xwÉì¢£½+’—Ù¢Ø¾/<]BâG|owÅïqºÚæÏ“]g\ÓKä}TÕ[&MÏû  Ş´×Ovã$uº¬x®ˆÎ—‰í-×Å·Hd&œ(±!R½›Ç×]šrM-EE<£åÜ+§›bŞ™T$×8÷gD¦ô¹qNûæ³#¾Ç%÷ˆÎÉñp—×·5'ú›ôN—mgTù™ ÑÉYvå ğjı€_Œ›Û[ëôo(±'/ï`Üdç®¼ŞEwNË£óåÇøæQÿŞ;ÏÔ»¿ëı©BI*ÑS5¾«I¤ÙÌN¼§ŠùãMôö$¹X'§œ»nÔu"_âÊM.™5?\ö^qêhØãŞ'Ë]ÖŞö‘¡İõ9é>’)kZUıÙ:;•]y  ¼âç£Oğ¿Ä5¹l4‘îH¦l9{õÎÉŞØ:-í<’%ìèhœïÆ^ ¥)uA6ñ5§÷x1²™bŞ¦ûğ¹N¿4)•uƒ'Ojû]Ş$ÏÖËÛú÷ç-tzú‰½W³ÖÇ·øÄçìJ3ïm  xR½Á*Óµ¾YÀ¯Khqiã£²è|Yz®cÄß¯Úİ‹‡w¢TfÚ9WxmB«Ëÿ†èI-è¢²±;}í¼VÌŸjÜçgqøœªéK„s§•*“ª¯ú÷§6¸ìıæ¨ç.MÆ±b»şı‘927©ËùæovœØ1L³>µfwå ğ¬åÙŸ,âˆo³ïhcÑ4N‚İ0úèÒ´Dd{Àæ;œ§]7¾%¶DNW÷RÙ¸_a ˆ÷¦ì.‘ŠùãlÁ]”Ö8â¿ÛåüüùxŞ‡û°ç÷påÎxÎ±±çÙVac»±²£ÔÄû  ÕŞï³Çé]5Û·3"KBGi¬äÈÎÑ…¬3}æ¥äpUŸKÕÉ5?6æD“H%E¼"ätó³¿:Í±7 ÍËlõßëd÷û¤¥¿ïÅœ²íËKwÕ‘1Õbf2JÏ‘ÌaÇæùBStRo°ò~ €»­ÉõÍ»ñ?Å7»¤xÎ=V$/Ìc·5KÏuˆÅ…'Œ‡3œ>~9+U/ûk¬İ(’™ÛîÔŸ§D[OácÇœø:E¼’ôóü|^öÇ¾€ÌÊi³éßßæà¿?ıx±ÓŸcM)9~ªÒ}£Ù’ºå@l­œ;Q&‰'Êdl­LOîñé4»Ë¹+ €[%4õúìBâÈéjßÇtdÈ–;ùËÛz,f¦êeß…"~(5‰•ıyò3š)zì8N_Mc;E*Ö‰œmågôÒÔ&TÚ=^.-¿ÓæJa·İï7ÙÇŠ\ö™°/¶N*¢ó¥÷Â—¬‘9²\Ö¨¼[¼RS­à½  wYšiğÙEDdŒã…|mT®üèä]É…ç:.âO”9ı8L×êeWÕÀÕÇ½ëì>bŸ—IoÏN|-E¼¢•êÙ™¿4iù¶¿guÏ—Ä2ƒİ¿GÓÛç¬g+¦ Vó¤˜B#ï  ¸CbS¯OÏ‰kt[C;[çÄãpİ×ÜQ9à’…{á(¬Èİ¿›EÚ,ò,ï2ÊW¤£ùİ¥i<[6æ{A}|…m8ïĞ¿ÿ\‰Ş¶ø3Ã*Ï­NêìÊ àr)¾¿h‰°}Ç¹**O6Ä5»öàûçÊgHp\“K~ÿ­åıc.¬s³Z˜ïâ"wuÉè¤ùİÅ‰çG,æ-™’›Õâôï‘™Û.}£Ì–êÁ1?İ@A¬ò|›eàı  WŠª±øÅ"bÛÙ±Ç)™g8u~´ÌNî¶«é][D¶¬NhsÍ±ÆÛÇÂeå´‹!:çê?OL‘däuPàØqœwuâ¾üÕ§uj*¥=¦HZbK¤8µANÕô»ìß[e‘rM­t,ıÑ\é>‘/5‰U’T¢¿øköTPû@r:úy_ ÀUæ¥éıf±óL½tÉ¼ªHí¿0Îm~R—[ÿØ“¶5½kˆÌ‘åN6µÊúB‹C‹ëÔ‚.)Lo’üŒæËÔÄ†ÌF‘Î^ù_¼»¨Sg¯üæGì—õ…Ša•g]wå p‰Ğb“ß-$‚4=²7¶N.Œÿ	‹­•ÙÉİù½4:©cK„s  vpIDAT}Et¾,°sÄİHY‘k¢ ğB˜¯~E:Ø+1‹³ŒÄ*¦¥÷G  œÑl²ÊL­……‡3/©Kr?C9Î…Íõæ§$²…¿Ç!wRÄûŠ„6~•–ı5Vñ‡.¾œeÜ• À9ÛKM,*¼yÄ0¾E¢bª$öd…:]#KÏu¸°C°^Âj­,ü=œØŠx_Òf‘»N2’Nq	.éã3DÅ	Ğè$­•]y  RÒİÏ‚Â‡³¥¼Ÿ¿îÅóÎâ{ò{8b¯Ä¬Î3ó^¯æ+n):Ş/ pDp»ñ¾šÅ½,ô½…¼¯Š§‹½âr¸ş¼Ìe$ªs²®—÷L  ìQ¥ >™Uyfù^H|+E¼/kµÈ$ºØ+/;*I§æ|“¡ç}  {,H§Á/f.Íí¼’cÌ‹÷yİ±Wb~,êåı_ÅÙ[næı  [dµ÷³ï«¢êö^H£™BŞ_ÄqÄ^‘YšÍU1µfvª^Ú-Ößğî À–fq§{ñÄUÉì¢ˆ÷'ÍfØ+/‡êÎËtF©ª6áUŞG Í©z r/¸*g¹ï—èb¯Ìl-g‹š;Ø×x? `$K3Ù÷µÌO7È‘úó,ä5:×Æk@‰ù¡ĞÂç‚J³½ÔÄ{*  Ã9QÇÇ³³’{ñŞHa…¼¿;ÙÌë@‰Y–Ã}yæÊ à#ZLÖÍA),|-¿”p/Ş9İBqãjŒƒxM(+kÏËì4îË«1«s¼· p©ˆjvã}î^|.÷â½•fºÔã‚Ì.^JÌ¶
++îË«1):)éæ®<  1nÎ·²0ÓÈ¼x/%¹"—£‹½2³ûòªÌú|#ï±  Œ7n\h1÷})Óµz9Pke¡Nƒ;(D™#öJÍ‚¼ª1ém}¼× ü[³É*3™­ëSÙQÙÏİK)ÓSÈcxIí¼>”˜½Õ|n¨0krı{W¾ª»WòÛLRØn–³5:‰.ï–c=²3¿C6fµJHv›,×4É¼„Y˜Ø _ª•VÉ'Ç«ååğryr©ü#¬LÙ]"wo+”ûw©æÿşGX™¼Q)ïDVÊ—§jeµ¶Y¶çµKTY·äµš¤ÙĞÏç0 ÿ°&×È¢À‡²¡˜ævÌŒ‡Õ™-¯ÔüXÔËç‡Ê ÑI^§º¶}Ÿ”t˜%§Õ$Ç+zä@q§ìÌï•)Í² ±AfÆÕË„¨*y9¼\9P&wn-”ë‚óåšyÄ†<²§D^=\!Ÿ¯–o“›dsN».í’ìÆğ¹4ûñ¥|_`aQîÅ¤tPÈƒ]yµfI_j«-sÒôŠzÏ­íé•‚6³$Öée_Q§„æ´Éjm³L‹­“OWËk‡+äÅrû–
++rä–Ğyî`™|S+ßœk”íyí’P§—Âv3Ÿå ”ï§.¾’E™Fã
++HL³H)Çë1‚ö^ùÿâ[y(1»«8b¯Æ$6»ÿ®|F³Q"ÊºdwA‡¬Mk‘À3u2ñD¼Q)ï.–;·Rû`ş¾¯TŞ¨”9ñr ¸SRÒfêÿß|’ğº´¶>¡S½ïŒã¡¹rr¼I$£“bÃ+Óóáˆ=qU¤;·+Ÿ×j’c=²¯¨S–kšäËSµòÏè*ùëîŠY2b?!ªJ¾9×(‘eİ’ÑÌ ¶4“N½¾’%},ÂØ½£öÉ©f^#JÍÂL×T›Ÿao29ıæÎDV[†}¯-í´Èéj„—tÉšÔf™zºN>:V-Û[*×‡p´¸6Ï(“Ùqõ²%·]rZ¹‡ÀMÒÛúøğ÷‘¬Ì5³øVp1_ĞC1«Ux}(5;*]{Ä~]E¾Ë3óyå¦|y®[>Œi‘ù‰['/*—»¶Êx
++KâåÜ¿£H&DUÉé-’É®= W™“Æ¸9æÅOäT3…<†§¡ñb³¶Àâ’÷è ½„ÕXeU.…¼»29±K
++¯‘[7sO(?¯®5©Í]ŞÍ}{ ö;ZkáÃßGRÊ‘z¥çX“H‰bW+å®¼bs¤ş¼ÌN38İ»$¤´O"„y7gBL«Ü³³”B‘¨.¢ªäûÔÑ4X' Û<vã}"ËrL,¸º×:8S>¶E$©]¤Ò@!áñšQn¶”;7õû|‹D6ˆD5ŠüPÈèî>^ÿì‘:
++C¢ê<¼»X>?Y#;ó;Ø­pµ]eì
++øJö×p¤^©Il£p‡m2»x½(9«ÜI_’m’ğºóİ8XÈ—Ò—ÆİùğL»Ü¾µˆ‚øTwüoÎ5Š¶‘İzÀï5­2CË‡½/d]…E6ëá:zå_b[xÍ(5‡êÎÛ=¦uNšAö]ñEë¶Š~>»Üœ¯“zä‰ƒÕ€Ä'ó§-…òUL­œ¨ìamø£=åìÆûJƒ»ˆ†ó,²UPÌ§RÌÃÜ•Wv~)±}¶|PŠ^¶”÷KÔÿ]Uv!@ìÏ±mr×væ¿ßÏG«$¼¤Kšı¬3 _WŞ3 )|ÈûB~)éeq­¢b>§›bc;ÊëEÑ™Ÿa[ã»Õyæa¿hİ[m¥÷@¦$÷È‹QzÄ¯òú‘
++ÙUĞAQøª…&>ä} sÓ,ªUØµ¾HG1Ñ¥vğZQrvÚ0[~fêà¨¹áşù}5V	ÒÒhÖùâ\·ÜÉ®<ñÓ¼Q)û‹:Ys ¾¢Áhe7ŞG²¹ŒqsJ-Ö5ü¿§˜ÇšÍ¼ÔŞønmE¢†ÿg÷VHP
++…¼ÇßÅ¶Ë4¾#~OWs§P»%™>Ø} 3Œ,¦šãM"åz‘äöÁãôÃıšM"¥zŠyŒ,¾•×’’^w~Ä/Åƒ´#ïÆÛº£O\{ÄşÍãÍs„lÌ“7åËÔÓu’\O÷{@U²Úé”ëÍ—¸näĞÊ~Ó
++¾_m,ÒKõƒ³äG*æ‡~p¥‚^KJÏúæÁ¯È5IdÃÈÿÜ&ÆÏy<“»äÑı•r„\’§ÃÊä§ŒVÖ!€,Ëb7Ş›9Xk•e9Î÷'Xšmb­ğB¾°ç×½½Wşï¹¶áwçcšEÚ,rïN¸RG¯ü¯'ågNÚåŸ«ì¬ñ×G5Š¬+°ğ™è…L8ÕJñFÈ0¹!$_¾Š©•˜*E= D§zù ÷rÔZeoµÕé»‘{ªX@+<éWï´gww>©]y/·›×’ÒsåI«ù9R?òHĞ¨‘¥Ù£¡»8ËÈz7±`O…!£ä¥Cå²-¯u	 $Ü÷~öÕX%²Aä‡BÇwcVä°¯†ŒTœ—è®>j´‘æw^£Yä\¯'¥ga†ñâ{ôOE½WÍ¿4çevÚÈŸÇóÒr¨î¼,Ê4ò¹é¦Æwã)Ö3×‡äËrM“”uZXŸ Şt²®W4:™šÌ‡¸· ÑÉá»4j­£.äFı2 ÚÊÂY‰o¹0o±Hl|ëåGíc[(ä1<îÊ+?Û*ûÏL×êeÍèïÑ‘2ân{PŠ^vTÈ‘úó2//ßİµ+ÿLx…!vv¼×4Ğğ¸V³õŞOÏvÈ‰İ|ˆ{1K³Mwi¢E~,²ÿªÃÚ‹f•äŒ…yv×`Ã»£våKØ•Ç0ª¼Ô¥Ù&Yšm’ˆ†ócòßŒ°Û¾®À"‘"k­29ónËGgÚ)Îq /*—½…¬U O(é0ËQ5òAl›LåÃÛ«ÙTzùÌ÷ƒµV™açBíPİyÌ
++mnwågë{“Y$®upd]\+…<†w”×™â³³r@6•õùë¢EÖä_=ƒş›L£„×—(ÆÓydWşî¥f„8˜¿ï+•3ZX³ îPÚi‘¯bjåšyòrT½LIîáÃÛË¹²A]T£Èê<³ÍÿüE½,–šMíÈ_*·{ğŸ©7QÌãjé¼ÎÔ[¿l½rüÜt­^v_øŒˆjÙXÂx:wç­Írmp>E!Nä–Ğù1£Eô}¬] §`v÷Êü„†‹/°¿ì*•É‰]|h{9A)z9Pkv'0eì~ºV?jdâİİxMûÕ»òñì®7™Eòº)äqµ
++¯55$ÊÆ_·½¢_.yÿ©¨W¢~íj¿Ê/y‰cù*©GÜ[N1Fˆ‹2/¡AÚLıÿ‡OlÀ?¤·\ö‚zxw‰¼~¬‘w
++Èì4½„³SÑpş²nÇ#å—vã•\È—éEN^Ñ‰^ãÄH9våq¥fóàu^sÎÑJÈ¥…ü’,Óe_Ô©?/2htç‰¼Ç\yB\š[CdqR£4Ø¡l².­EnÜtõñ°çWË¤vã•9i†aùèF‘Ÿ‹{Çüg#X¤{3Çš†¿é]øü_³ëÍò¸Ú
++yŸIhYßÅÓVû®èr¿¯†FwÊ—çºåOÛŠ)ÀqqnÉ—ì6Ö2ÀH6fµÊ_vÿôØŞRyóD3î’yé†‹£ç®Ì1º‡”ö±ğU@úcMÃøY]¿İñ­ƒÿıÉf‘ö^ùwg^ßÎşóğ=9İ¼ÇŠ¾ôŒjù¡Ğr±ˆ¿ò$Ap)÷ã=™§Âk)¼qS^:T.1U=ôÀmyíòäşÑ»­¾Q#_cÜœR2+U?b¤¨‘9¦aÿ¹ùéç
++8:ŸÕ5ØUşÊÿíx“H…áòİó¸VçÕ#©7|2„ÈeGÓ•üç‹h8/ËsL²µ¼ÿª">¢á¼|›mâsÓƒù"±›‚‹7gnBë"ø·=òÈ’1_,÷ï(–÷O·ò­ ÌLÕËÁašİesùå†ZÆn¼·s¼I¤Ñ,Ó|õÿvªyø‚;îp—Ä6^“¾ĞÙ~WÕÀ°wú÷VÛ?–”8Ÿ£(¶qsŞŠ¨”ìë#ø—­¹íòçE6½HnÜ”/ÿ¯–¯“7§¤¦èdOõÀˆ»ğºó2'ÍÀn¼súÂøáî'Ç4S°Ã³8^o[FûâÔÛ9\~Ø">ªQäÇ¢^>3½ÔÁşş]eª-®Î“{·ÉóËå¥CåòáÑjù*¦V¦œ®•oÎ5ÊŠ”&ùNÛ,¡9m²« CövÈ‰Ê‰«ÕIB^òÛLRŞe‘ªî^U~¦´™EÛh=²&µY'5ÊG«äÉı¥òĞ.z (-¡9Ü‡ø9³Õæ~(ÏªN·ñÁ¬Àl«èõÎä÷ù–Ë~ı&îÆ+"g/Œ‘Ó´_ı¿ÅµRÈÃ³Êô¼&}ùË‡¹ét«÷V>ŒmWÄLî„•É³Êäİ¨J™~¶^fÆÕËŠ”&Ù‘ß!»:ähE·d·˜$¯Õ$uº^>ƒlTŞe‘¬“ì+ê”ui-2'¾^^=\!î*–ëCò)°=œo“›øÙ…oú%«Uş¶·ÔîÅõ!ùòÖñ&™’Ìn¼·²0Ã(a5VY“o¾êxäÏÅ£ÛU9 A)úãêØWJ†šÙeu]ı¿k£‡çhâué‹£ó6–ô{ÅŠx.w¸¸ƒı›òåÉı¥òÂ¡ry?ºJæ'4È²ä&ÙÙ*Ñåİr¦F'™ÍF>G ¤Ã,ñµzÙ[Ø)‹“å‹S5òì2Š|7feJ3?ûğ;ó;ä~;wà/Íë‘Õ2)¡“c/fI–I"eçeu¾ùâÿ¶*Ï,Q£7hš)¿¡˜¹ñJIÕ…fv5ÆËŞmÉë¦‡ç¥wòºôÅ{óÌ÷~>Oè²i½uÏ¶"ùÛŞRùàh•,Hl5©Ír ¸Sbªt’Öd”cÿJŞ©|G“¡O¢Ë»emZ‹ÌŒ«³á4±=«(æ¡v!ÙmrÏ¶"§^î*–c[ej2ÄŞÌ²Óeã¢EvVÈütƒ,Ì0ÚM9ªQä§÷#•|¿ÓßæÇ_úZMn¿¼	^«E^åV®~ŠQïn|H)»ñJÉcªä¾ÅònT¥Ì‰<Ö¾» C’êï’ó„!Õİ½^Ò%ßi›åíÈJ¹i»÷dµ–b*ôË(sàíÍËÕ29±‹a/gyiØ]÷CuçeM¾YÂjF/Ğ÷V[eM¾…Å­B’pÅÑù6‹Üuªyp7>cõğ’‹DŸjæõéK»ñó¹¯¨,Í4ğş‡¶›%8«M>?Y#ï-¡P·1aE¼æ 2»?R>P&ïj‘©|øz=‹³Œ—íÈ_yt~oµuÌùÇcıâùûñ—Êê,ä³»(äá=Ií¼>}e7ş—:Õ+1áUŞãá´ÒN‹(î”y	òè
++û‘rkhÔëúxÍA¹‚³œ?B?\Ş=V'_ëæƒW™“fCu#Ÿº??Ò‚.²…­Rr´Q¤Å"ñÃ½–O5‹T(äá=ÅºÁ«¼VÕ}5V™“f¹iYc’õ…ÙXÒ'Û*úegå€,Ë1ñÙê¥ÌNÕó—k6ôÉÖÜvùìDµËNåúJ‚ÎÔñšƒò|ŸÚâ¶{3·m.÷O·±¯ht²³rÀ±™QŠ|âùœeF|Z§H“™BŞSoüåµªŞD4œ—•²¯Æ*áuç/~Ñ;”-åı2ıŠé'Ä³‰ªaWî•P§—U)ƒwì)æó¤´“× ÕØó7çå:7­xáH5»ñ
++Ëê1ºÓ¶[ÏâV9Ñ´\¨×™htïjï•¡Wı±ú¨şû½ÕÌ”W@‚RtÒh´RXÀ#š}r¤´K¾8U#7úiã¼eÌ—‡7e·˜dZlG~ØïÚV$ïláÃVa™™ª—ğQ×¶¨cq«œTGßqo±H4ïxğ¦sm¼N}±¸ß[m½8Š”x?»ÊÌğŠäzƒÌ8[/÷n/ò›BşÑ=%¼ŞàyÇ+zä£cÕıaß_)_±¯È—ö±(Uùıø1¿9çh=¼LCÃ;ŸJdƒHhYŸÌJå8½’2C«ã½ŠØ(\œÔèÒfÙJMUw/¯9xÆŞÂyãH…ÇÈoÜT bZùUhdFO”³­éP¾Ø^«¾²°Ö*ßç[$0…ÏO%fM®‘Ï(FZ“Q¾9ç»Eı±Š^op¯­¹íòçŞ;êòü‘ù:©‡XgSiÇåUšôN
++y([{¯üûÑšfòVQÃ»úó²¥¼_d$€ÏME7²-íàsŠs¶F'3ÎÖËƒ»|§şjm3¯5¸^­®W&6xıü–Í21¾“W…g^ºÁ¡»òÄûiäØ<®Ò Rl¾ìç6¼Î*{ªúùQEë—ç˜$(…£ôjÈÏìÊCÙ¢Êºå«˜ZÕò¯©àµ×Ñ4ä³5ŠùçD“LMæCUIÇè×ä›eCq¯üXÔ+«óÌòM¦QfhõòSQ/‹j•åd3E<”)¯Õ$?e´ÊÛ•rsh¼w¼ş²÷—5t®]"øQéwá—å˜-§Â]ùŒ¶>> x5=½²6­E;P¦ÊBşö-¼Îà¼C%]òf„²æ:¾Y-“»øPUHf§v¨¿tŒPTÃàqÉ]•ÿÿöî+8®ë^=tNİ9U3Us^nÍËTİK²-Y–eEKV²²%ÙV²dÉÊ9K3E‘IeÑŠ”‚ H€D	"ˆœn sÎİ ß} E‰$H"vïğıª¾šSsf„½×Úÿ^kı¾RÆ°×çÇ+ÏÇÍZ—+ŒÌ~^®0áÒtåóÁİû'ÇûRë=xµÆ…böç|>é‹pãõ²}!Î$*†Q¼vØ,ºb9š_dâ‚o;İ¸{ŸğHÜ”£ÆÓU¼ËÉT8wÌ¶ÏY¨—Ø}æ8Š¹B&šŒ²§äĞÄÑçÃ[U\Ÿ}ş,Wf©Ph£Ôq|›ıİùz\˜ÖİzŞš!ôdé'8‡ŠtU^92Á9‚DÇàaS“cFs‹bp÷ÍB§+Œuv\¼M!Ü3#%f^7'Än¶ŠØù»³•h®óÄğ0GDJk`ê¼]mÁshTt}%ö)Û¦ğÌáŸú·lWÇø>‹ ¼fN¤ıoÚƒ,0HÔvöùpO°·İ»B,äiéGñ\¹Iğ¿L]™9€j}œD˜•mA6µ“H*œ\§Åc£X;‚õÇ¸ezAæ†#ø~ ‚ëwÿ´‹ìÅ*'·×‹ _Ä8‡Š4õNŞsMâWm
++àÉR#·Ö“¸¸BÈèóáæµhÎŠ<qÈ†wšxİœPóy%\u}yYÈÓÂ*Óù±®ÁG
++õ‹27|ÙÂòFß)ÿÙó•±|rM“œ?Ešu\•'éğE±´ÖÊ­õ$l]®0Ş­¶Š®áÃ_èğJİ'OŸ›ûvpŒÅ¼ÈÓ=ÂBæ§ÉÂ¦&îß¯ÅEi‹??|Ô5Š›sOİ"yu–
++[”Ş˜!‚¬ï
++siŠL1Î$)–Ñ1|ÖâÂ…ÜZOB’Õ/ü³ çÚRÿøAŞnäj¼à‹ù– ¾c1/ê8y<ÍR•q_¶»ñP.)sÄ?Ú¦íhŸ¦Š²A¶¨Æ8ŠõêY®Ê“íìóqk=%ŸÂÁÊºé?pÄµ¯Çs</º•ùŸŸO-e³;ŞO’qÔÄGMN<^"Œ«IïŞ?ıÿÏW:°ßÂ«/…ëçN§ĞÈUy’º=¹¥KÅ÷J®òUÃx¢Ä êâıçy¨ÄÂÕxó_*c'ï—ÿñº|Kü”ÿŒVòşxšF³=„/Ûİx¸P‹Ó„w«Ée;¦ıÏ_¨r çäE‘M=¼S^Ìó½=çÜA¢÷I‹S0óÚŸó´|§äÄÃæ6îÜ«‘LÿãÚ³5^N–"Ü7öD°Ç4yr«}‰È1NòÃU QòşxJII©4âÓ.3Šzş¸%W‡»FùÃ¡’¡ãòbÎ^}”s‰Ú3›ïşYjà;%õÖ VµIªxÿyîÜoâ½ñ"ÏŠ¶ ¶¨ÆpàÄJ<?ª…ÏÇË=8jS kêí¸/_‹_mSHfşømÆ 6´ûQbçª¼ĞSlŸÂÒVŞ)/Úy¾5W„«ò$>e:?®ÏÜüõ^½ï“Ô¼è$[Àÿbk?®ËVá±
++Şå$)‰¼ßÂví8yæï—õP9Ê!¬k°ãÖ=jIÏ!¿ØÚGË¬Ü^/’lVD9WŠ8ß*ÂœCHT¾épvîÊæû$E_µ»quæ ä?¾~±µ7æêñZı'H)İ;Ûæ«@SÇóñ’-Ü·÷zñr…·È p?=Ø­ÁvuŒï¸’©çöz1giK ÖĞ$ç¼{ê=w9yõœtü1¬k°ãò¥¬>Àî+²rr”X~PñƒU éf!/­2û}x¶ÜˆK¶+dW¸ŸÑg%c [”¾ã"ÉŠ6n¯s¾æª<	ÜÒZ«àç­gË|¤ İÆò#6Y~|ır»’«ñŒ˜¯‚*‘øõy¶y1êp†ñ]§¯6ã²JÙîÓ%µÁËë/E’Oû¸½^ìéôr%‘„ggŸ×g«D1g•éü|‡Äì¨%ˆW*Ì²şğâj¼ôòaWÅ„šƒ</Joiİ^<SfÄ•™,Ôg‹Ílx'’dq{½èóU?WåI8:]a<^,+¹/ÜÚÏ÷G¬éGñ`^[ûñÊÑaNˆË6Í8?Tš#</è÷½>¼\aÆoÒ¹â>—ü>S…kœïºHv>-máöz±_=ÛÁUy€uâÛÕünµ•ïØäã¾|-?¸Näı&N†L;G6½~òBZqÿ¡Ûƒ—+Ì¸&ksÂe·?$Š%Ÿ÷s{½Ø³ª-È9…’f{¯Ø%Îù³ÃÉ-¢‘ÙïÃıûYÀŸzïï ^oàÙx©ec7»ÕóÚ9šf8†å^®0ÉæF’dd»:Ê÷]$Ù¡åöz)¬Ê7¹¸*O‰Õâ~7úseI-WãE!«ß‡›rTü¸:ı\HZ?,³s”`¶ª¹&ÔÔ{YÈ'’v8†Ü!¬¨³áZ®¸',«š†ø¾‹$¥`IçMÑ_7ÛÁUyJWhïT[D=G]·kŞÈÄó¯)`ßuzğ»6':[®ÉÖâ?'@	fŸ™çS…š®ò‹i(:ñû‡±´ÖŠ{y„*iy±ÊÉ÷]Dù¤/Â¹S
++GêL1Î/´¨64:$1GÕ˜|W„j·r÷äñî|y¤ÜÁ‰OŠ¿Êwq[½PSî Ìaò»20Zs «Úp{®†c»@ò·¢Ÿ:×—òİ|2tÜ^/…¬åª<-’í½^\·K»ÚÖ6ØùÑQK=À.ô3Éõ{tx»q”Ÿóíà?L§Ù:ÊóñÒQaÅæ6›–
++ºsıàÉÎõ,ä…ŸbÛR9JcG>Êy†L™Î[÷¨%37ıõ€ï‡Ğt8ÃxªÔÈ§äŞ|-¯pq²“prMÜV/ÔÔ¸YÈÏEƒ5ˆO[\x’ã¼hò‡İä™'÷csö|ÜËíõR‰-ç\CóRc
++à!‰]Ñ}C¶
++º?ÍpKj­ühšÉ=ñf1‘©æD-å¬lòƒTÀiö±Ÿ‰¯„{¢Ä€Ëvğ.w1æ¢4¶FOÜU>ur›=#ÜlÓŒs•HörUæ¨ÑÄM’œ—¬<z"_w¸ù±4ƒ¬©·£ËuüDg$•mANrÎ
++^ù$äôñşø³îÙŠ!¼QiÆoY¸K&i'
++ùR®È‹"…¶)Î£É’®ÊÓìçáåGl’2ú||„ w`7dó*¹sÏVáãf'lSïİ6ÈÕx©']ËkçNO‘M+åÀÂFw)))))à8r”CXRkÅ-:{ÇœšC(=ñ°ÄYÌ‹ »ÃœK%’ï”aÎ7t^¾ÈÄH¹€ÿÅÖ~|ßåá»l
++ooTšùqtÜ«Az¯wÚ‡U9Â´rH¡ÛW…šƒNÀ7†ÿ!×1¼ÍÂ'-Nü½HÏñZ&YÛ:‚Ò[ëYÄ‹#?¨Æ8—J$Ë[°†&YÀĞ´¼‘‰ÿ¹®Á.ùy(G9Äw Ù>nvò£èù{‘‡£ç|P¿à¯ì¼vIfªeØè®LçÇ¿j¬øãnî¢’Cnİ£Æ•fd+†ĞæG9ß{Ñ%Ïç|*¡|ÖbCgØÜæÂåÒ?Æ–ÖíåóŸLêŞ|¬ª³¡Ãyş­SıÃXÒÂ	MêùAÍkçÎ¸RI@¶ê½Ò/äMş1döûğx‰rŒ–|.ÏP"µÆŠí½^ô{"g<ßÇ¼ƒÄ˜÷;CœS%”.ß‹JIIIIÙÙç“Eÿ‹­ıÈæsŸÌÁ·ª,üPš&7å¨ğU»–ÀØŒĞ:ÙàN9`å¶z¡/s ÃÒ,ä›l!|Şêâ®2È¯¶)ğd©™ı¾“MTÏÅWåE˜o¹½^Jù²ŸgåånG¯×dÊf®*ÔŒğ™O–¯ÚÙ~º<^l@îÀìÏy´{Ç‘Ê‰LòYÚÊkç„œr H£w‡'Ê¨G°üˆæ%ß¤+ñb¾hu¡Ó5·b ÊÅ÷_lÙcœä¼*±4¹ÇYØÈĞ.ÅîÜ+ŸÙ¯ÎD)Àg=ú<<UjäÇÓiy«Ê‚&ÛÜÏ8­içj<·Õ3B(äíñò
++o[º<x^¢wË2?åÑ"=>mq¡Ê¸0C>¾ÿbÌ{íÜ^/¥lèâYy9)ÒŒà:YÍ]êáñ«¤ØÜæâÔÏrãn¾épÏûa,5Ç8É$û-q~|Ns'²Pşw©pŠ¯ˆ?b`]ƒÙ¯ã¸,áÜµOƒTğE&şs¡Ÿ£®EbÌfEtŞóRjs KÙŸGIåª¼,T›øÛùÍÙoTšùl'C‹#„ø1u"Ï•›Po.ØÃø~Wãå÷;Cüğx!_éG!Ÿ¯Æk‡Í²:K'·Ü½OƒeGl(ÑúòLj‚‹Ä˜lÃÂl¯ß>Acÿîcyk€w“y¯…[¥ªLçÇıûµ²œÓ2û}|®“gáçÊø²İıHlAÄ,M„—Lò½ŠÛê…£aòú‘~èöàáBŞí.Õü)W÷êíÈU“Ô…âdÃ;Ñf¡ŠîÕíAäê¢°†&a
++N¢Ñ5íªWë“RsŒE„jFğP<wÍİ²Gc¶ ŸçD;fÊöW£Ÿç‰
++Ô‹ÓUÑšdƒ;EH+ÏÌôiö	§o²…ğa“·ä¨YèJ07d«°¤ÖŠ­Á «CNbÌ'}» °º=ˆ*Û©?&)†'gˆâ«ş0V³§Ï¢gm©¬À?)ã¾bë9ø'CZ·WÖX¥õcmƒ­Åm:²‹«ñ²É]a~pN“]Å×ëOn!_eÅ’Z+.Kg—y©åÎ½¼UeArîğÄ!ÎıÕnIbLšf|Ñ¶xWÛ§ß¢öObÛ`„‹‹˜ê‹ ‘*×ûe»ÿ‹­ı¸8M,n¥O<ƒ?†§ËäûËÑıùZ|×é72ñ_‹ıïZíŸà4e›fœœ?_î 4ÁÄòEš¼UeÁEi,v¥”ëvbõQv)† ŠŠâƒ¦ÁË1IŒÙo‰/êüõqOGg?î¡ÄÇ~ˆğ»f³¼5 g$ÎbHDòUÃ²ºFnºü«Æ
++£ŒÏm¢Õ˜¸"c@–İ³åF”éü	}è¾ês¢’Q„¶òÌ$ïê9{p{”Cx¥ÂÌ‚WB¹)G…w«­(Öˆ¦p?]ŸŸã€X³¦cñ¯¡û¨;•â¼Ïv»gÛ#ØÔÂ²VÎÿóÉ]”‘|ÑêÂïdZCı˜Ûs58låóškì²Üö±´ÖŠ~Oâ·.éF'ù«µŒ²±›ÛêÅÃ‹Ø±^?Cz¯/ğ~wÉäïEz¬>jÇEê¡’¶Ç±æ+eb®±]ÒÀg½!“3zî}ÑøÕ¶1¬ëä¹ú¹şûÖÏğß5%–ÂÁÒZ+.ä|ˆí½^>£É0è‹â‰y]+÷›t%>lr&õû€š¬²…İê§M‘ÀšÿÕ¸¶ğEñm§[ÖÇ•¤”‡
++tø²İJã(¼‘‰ÿ–êwÁA6¼e2õ	¿"-S™qAŸ’’’bÇÑàG¦:^»;‹£yƒ<+/$UÆQ¼\Áå±µ/W˜1àã®‘¤ÈVÉêa»>[…Œ¾ä7^8æçÄ$³ì3Çù¡)‚Fw-Có/ä{Ü|ŞêÂ#¼&NÔ¹&kÏ–ñï67ÚaY}¤T¹86‰1¥v 5	;ıR›Ø«ŸÛ‡|ÿğ~ˆ`]GWÜgUŞÅ³òI·£×Ç+`OäÖ=jTp}òlhtÈæaûÛö«†ó°mè
++qb’QV·‡ø‘)’(FçVÈw¹Âø¸Ù‰¿ì×q‚i~»C‰W*ÌØÙçC§+,ë“fÇ±fCwòzï¬i¢À8÷kíá8Ê-1¬åJıô7ßtò:ºdhq„°ú¨—gğ&™%oéòğYL–_÷çËãnøçÊM	o`w>E¦'$™å+eŒ˜lt×é
++cc£÷äi9¹‹0×XqßÖãmcºÅ2àx Öü Kúœ·®3ˆ×ø¼Ş)İè$JÍ1|­s¥şg;z†&8V%ÈnåşYjà|ù³¼^i†n$Æg0YêGñûÒï¨øt™UFan÷à™0ù%K?ÁLä óüE|‡3ŒõÇ¸-WÍI]„+îoVZ°¥Ëƒ.™¯¸Ÿ'†›9&ˆ3{L“‚™ûÖwa	-L“¶
++kïweßÿ³ŞÇ®EÔå
++ã“'.MçêûÏsOõVîIªÏZ\’Ğ^<dB›C¸ƒ\¾!ÊÂV†çÚJíü¸sÇúvgï×ÛqSŠºˆriºÏ–‘­B‡“…ûl•sLmV·‡µŠ¼EUC¼sq„ãhtãËş0Reú]QçàıÜI?Ã–.-âÙ÷Ósãn¶õ°}Ò½Sm‘ôƒö¯«à;&šƒ“,le˜M=~XŠ$U?+äÛNœ‰»>{“¹HrUæ )3âÛN7”^n•Ÿ¯Ãlx'Ú|Ú'¼Eƒe­ì7DáÄW,Ô3êŒ?Sÿµ"Œ­òÙíøQ7WåçkÀÅ­.<p€}mÎ–MM>gÉÖíàÖ=Òİúêa3”"¹ò Kaa+Ã|3ÀóñbH±m
++ß+‚XRkÅœÄE’gËø¦Ãc6nù[hÇ¼ÄšÚ	AŸó>d]œ3¶‡mcX.“­÷óíA ×šhc£wíÓpş<GVÕÙ`p×GÒåK¶Ãâ³åFÔš¢yÈŒIÙŸë’k²“ü°hö™&±±Ã‡K,¸(MÁ	\yà€ÿns£‘…ûâ¯XrŒkö[â‚oÚöIOMîÅ)FI¶áÃnéŞ´¢•càL´:Bx¯Ş?îæÑ¸óå•
++3ZÜí!7;%ùİ«Á¾ÁaÑ=dŸôğº9¹¦Ø>ÅKe—~ï5ã¯…&NÜ"ÈC:¬?æ@)À‹óÄpÇñfmgXsäWıw~~:šÑIìTG°±+$¹3õ-ì~Æ8şöãõJ3~½?ĞÏ$÷çkqPÏûàcõQ»$»ïèõ‰ò!Sù'°„W§ÈóÎ×®0?(íê–4xñçFNÚÏŸó´ø°É‰­ŸÀ†wâÍf…xšë.k ]YôwŞ˜Ä÷Ê0Wå%æˆ9€OZœø+Ï»Ïzq”¼€¸Bãx¸Pz?mq‰ú!û¨›«ñ¼?It¶(#xãˆwä±­sS
++ËØpØ0
++[€g>…¦ÂÉ±D¬ÉÔOˆnÎ|¯=ˆÃ¶Å?›ë‰Æÿwƒkßˆÿú]šˆìÆMghYı>¼zØŒ«2ÙÓf.üÎ>ç[!ér…ñç<­ä®’û]¿µö1´2N&ïOh>ë	à™ÃvÜ´GËÉZ ¹-W7*ÍØ¥‚+ÄÂ]ğ+]+bMuJ´sç†®t£“	<ÑøÿŞ§bCWH”Eıª¶ ¼Ñøÿ#åqH7C¡f«Ú%İÀ{±sEÆ ¾jwsŞš­_rWå(‡$ñ mìâj¼œsÀÊóñ‹™ûÖ·à‘R®Èä5qB½Ëı­*¶õxÑãğBdZ‡8Îˆ9t‹wù’–ã÷Ï'òy7&±CİqÈ*i­º‘²ú}H­±â¶\î‘ÏD¾»Y²Ò{½’zĞ>jrJæA+1ÇXÌÊ8k:Bü\„ä&°¼Ñ‡{öÙi^€¹pk?-Òck·mì~+z½~9bÎ×âÿYÙDy‚›ºy¢ñÿ]mÃWıaÑõÿ¤hÇÛ~OÙŠ!¼\aÂu»ø£üBO¶¹ûMŞ¯—NS»–Ğl—ÎGŸ'ÿÅR6¸“u¾èòCr’6Å›unÜ”Ë-óBí,¿©ÉÁ»Ü%Hàø#æd&%3§¾ß„Ú?‘ğ1ÆŠcÛ`«Ú‚‚îzŸ.¢UùG?t{ğf¥—íPr]„,­µB3Ì[ëJ³d¶]Šµı¹0r5^îÙ©ãùøùl™ÿ¬'€ªœ¸*‹w¿
++-§)ğNµYı>ıcüP0S`çzñ¦Ø>%©+×–´ğ­"[(”q§Õ3OzğÒá®Ê÷¸#ø²İ§J¸6‹+î‹™×+ÍPE9/•Á“LS»—+Ìp‡'ÖKíodM‚«ñL‘çãgµr¤Çêæ!ü£ÜŠ_mç/ôBËÙ*llt ÒÈ«jäÄ²s½¨³©'"¹ùue[Öä­6ŒL KÁšö  ş½|Ô#Œ­u– Òº½øG±¥qşLD^©0£×Ã>4‚Vkà»Å¿:uİ®Ad+†$û°ı0a!+ó¼ßÉóñ3É·Ê0^«uáı¼ß]ˆyà€?t{ ğòã@®|cøÏC,äEo¤»CpU[ª$l·ÿ¹*ÛV´
++gÛ}=±»¤´Ã1”hıXSo—äØBÏK‡L¨³8G]îÀ°DVáM’¾rÈŠcy+Y¹'M=ÎÈ³äÃÎQ<qĞ†ë²Ù‰Vhù]Æ ^®0ã€z„tÒaÇ-1g·qRÒóíÒ– Ò#pEâI·ÃØ>˜ü…œÔçåMÁ…ßfï
++M H3‚›xá 	—¥s÷\²òp¡‡ôÜ!'
++RèLeæ 
++dğqøQ7¯›cØkŠóòg[æW4áŞFüj»Ì-÷äi±¶Á£6ª£éU»9‰9E¶)YÌ»+Û‚¨s$¿g‡-G–&‚uÉİv¿º=ˆ,Mæ9ôà8*£ØÚíÁ3eF\Í+^SÀs¾‘9DÿĞ½Qi–ÅÕ]¾	±ÏÇ;€oa¼ZëÂs4œx˜gËø®ÓƒâĞùõ°ı}ò]aYÌ½©'ºÛ›ƒÂhúÖàOê.ÍÔæ Şk"S1pî'J_Ûz¼x«Ê‚{óyCŒo÷:là
++¼¨ll¿­Ç+›‡î³^®Æ3Ç#·Ä=†	¬kÁmøÍNºËow(±ªÎ†¼ÁaxÂ·qv¥Ùhb!,ölVDe5¯hb¯^8?TvxÇñ½2ywÒ§X¡OWE „#8Ã†Q|ÓáÆß‹ôøõvî–j+6 Tëg/6oVZD¯p·[>’ªmc,`™ã]c{#²ø0Ü¢Œà­:î+`£:!æÖ=j|Ñêâ<š·îÂbÏN<w¾×DïĞ„`Æ@}`?„±ª-yÛîßiÅ“•ü!G‡‹ÒXÀ¹Ùl™¼(½.ò;â—±ÉîÁû 3È"–9ŞèN#İFw›:GñÏC6Ü¸‡Ûî„˜G
++õÈèóñYZPš a±'Ï—íœ¼´%€/ûÃ‚¢Iítÿvã(©öâÖ<#.IçN:!m¡o°òxÑz´H¼W7üj›B–¿²ÆXÀ2'“gKjËüÒc>Ü{ÀˆKØVp¹"c ¯6£PÃ.ó´x,a œÅ°èó^»¼ÿ½ß!Œfx?ç‹Æ/(·ÄÌÅ wšFñ|­·å›ğ«íœç“•·ª,¼FNì,Ğ‰ú‡R†“\‘8‹Wæ””ØÅû¡Wê ¾îáÅ*'®g£:Aæ†lşUcÅA^;C	âáSòâÏ'}ÎÑÍ|ÜJúUuÓ©²a]Gòî£§iOW{qÃn¹OT~“®Äê£6²ñ¬ø=Ğ$Úq]ƒ]¶à>}”#s2k;Câ;;©Ã{ÍÃx¸ÄÂëáš;÷j°ú¨5&şZOÉqĞÉBXìISsşÙÕl%¦˜àÆÓsšİxüo7ÎûŸóİú»³øŸyë˜–ÙqY¯›[¬\“5ˆ·¹9ŸKÅã%Q>ˆ§)°_5,ÛÑ‰cE+ÏÆ3?å›˜(>è>ï	âåj'ş´OÇIU ¹/_‹³ñ¬%_yÑ'Ç8Éyú´|Õ†n4ñWÕ)½QìWã›7-7âúìS‹æ‹Òx¸Ü1«ülyµ~•9ğ|­¯7Œ/ì›Î¿:ÿâ‘!ÜšÇf¶™{ò´²®›$éíjqv§¿um¬Æ/úxİsjrŒ“‚ü€Ë5N`EÓ,6ãŠLşÊ.ä.µ›Û\èp†9Ñ“ TºXK!K[¸ø0]JÍ‹³:oŒ£Ê8Š}>¼[mÅ]û4¸l†ıf.ß©ÂËG‡äŸïÁ2~µ]‰ßîÄsõ¸§Ğ‚¿tâéj/^<2„Wãµú¼z"¯Æs5><[ãÅ#¸:›Gíæ“ÕX¹£NŠ^®çvúw«­²õI,máäÇœšBÛ” ®‡{±ÊÉóÏÃ…züĞíÂá$O‚uÄÃ"X
++Y×æ\}–{Ö?ïAãŸÛê¼n$†bí¾ëô`i­÷ækqyÆüÇİyÀŒwšFäŸñ¼3›i_¸µ—¤à×éJ\–1ˆKwà7ƒøÕv%.Ş¦À…iı¸x›×dkpín-ÏÎÏ"·åªñQ““·ÈHÕò#6Q>˜Ÿ¶¸ø@¦¤¤lîãdÈœšUíÉ=¿K?í~<XlÆ¯ÙyVğ×Äeõû q<%Qhò±–B¾Rò–seYk e–³Ë}ö(‡ğI‹oTšqËõâŞµ]‰gª½òÏözÃ.çí3¼¦îüy²ÔÈíóR÷i‹Ktæ/·)Pid—ä””””&Æ0gæ£ŞHÂ?Ê¾ìáí:nİË³îBÏ£EzäÁèã8J¢Ó5Â"X
++Ù¦á÷ËùÎ†¿pd/Õzñi«kêíx®Ü„k²’w$íú=:¼Õ¸0«òO²s>^„\9ˆõÇüq^¾ïòˆ²éR·›Û>OşÓÃ³ñÌ™IÓŒ/úGØ^ÓÖ´ã‰ƒ6ün'Ïº=ÿ(6`ßà0lqŸ$jê ‹`)$ÏÌ+sÿÕÀóµ><vÈ…ÊìøS×îÖâŠL• ç‘‹Òxü°ûœÿ<o7âµ†‘üPáŸ÷ª<óSş^¤Çõçw¹¨5D÷>^làú35ö1N‚Ì´ÙkŠ/Ê‡×÷¼^ëÆ]ùNœ"È%Ç‹wwx¢Œ#&I…)Ì"X
++)u ©2èïóæ1?^ªÂ£‡œ¸·ÈŠ;ö›pM¶—îÀ…iâ›W®Ú¥Áşsş3?rĞ¿™ñvã¹ÿûîÈg'úùä®}lïõB?ÂÕwYiq„p±ÈšD¬>jãCzš•mìøÊLw®.¸`Z,q|Ø9ŠÇÊ¬¸*KÅ‰SyªÔˆ¼A‰#érFYK%º¥Ñãç­c~<WãÃã‡İ¸¯ÈŠ[öğ‡.İ!½sÜ¦õã‘ƒÎs^G÷Rİ.ËÄu»Tx¤Ü·ùÏºAŒ?f$3Ù¯CZ·½îN–­›sÔ¢zh7·±©İéÊ-lÃLŸºÂóú°úa0‚¥Ç|¸“«î¢È¯·+ğâ!
++5ÜRGòàÃ,‚¥‘ÍŠ¨hæÖwO?äÄ_Kl¸5Ïˆ«³5øm†ü–ı>K×Ï±}ş¦QÜ°Gw²ıUYƒx¡Æ{F×ûwšFy4o†Mis”C<÷Nâº+şâ4W–¦á‰Æ±„×Í1gÉ·ƒc³;§hšÄ†v?¯tàJ®º‹ckcæ Ş®¶à M?I¦?f³–Dvh…Õğîõ†‘ãgÖ+\¸¯ÈŠÛ÷›pín-;¤O³*ÿ`™ı¬«òï6p±õ´óõı¸3O·œòß÷÷ƒN®ÊŸ¥ã|¾j ûÚĞ	›šâùµoç ê­A>¼ÓÈÔDX°2gM†nbFgİß¬sã/…&N˜"É-{ÔXYgÃs€ã"±g,‰äš&>G¾rtOvã¡2î)°à¹z\µKÃb}–ù]¦
++¯>ë¿çVº§½ëı’í
++<XlÆËuÇÿgß8æç¿û­ıø]Æ Şª²ğV.šŞAı¨¨šÚéØ¸ál«ñÿÏÆ3çJ¡mêŒ¥bÛ6´ûñr+®ËVó#D$¹¿h±‡8±—d–¶|Uı¹šã«ê÷Yq[¾×çèğ›ƒ\ù]ÈUù­ı¸¿ØŠw›¦ÿ;¼\7Œ_n;{Wúß¤+q¡	/Õá¶|#.”éy÷ÏZ\Pz£œãéÜnËÇÇû‹‡L|˜ÏáÃn^7Çœ=«ÛC'?²tcxç¨wäéùÑ!¢Ü½ß€×j]Ø:ÀF6D,ä¥Ÿµskx÷rİ0ªòœ<¯~]·À':—eâùZßYP¹|çùëır›·ì3L»z/µÜœ£Æ›•äğØ0ÍÂ²#6Q<àŸ¶°©İ¹(†'X¬2çÌ’Æ¼PåÀµ\uUşVdÆ»õ^lWÇN~Üt‚ã!y4¼;wóŞá‰ÃnÜWlÅM{¸:[ƒ_nçıãBÉíù¦3šØıxíŞï³Ô³Zá—â¿ŸgËø¢Õ…FÓ”jı¢xĞ·v{ø€ŸÇ—ıa«Ì)y£ÁÇ*\¸eŸ6"Ê/·)ğr+Ö´cqúåòDÓñÄğòÒÉ÷ª1¼Ó4Šgk¼xì.´à†\=~Ÿ¥–Å*­øç3%8ì¶¿"S~t,ĞáóVÊt~Îá4wíÓş¡gc‡ó;êcáÊà_Í¼xd+µãúW»0âÈ™ƒx®ÒO»(¦ÁéáŠ<Ñô\Ñã?t±gÒÕ1|ÚÀGÜø[‘7äh9GHğ:º7üøÄùËv(ñH¡Ÿµ¸Ğâ`/Z`«ê„½¥şò%jLìÀ<›x6^ÖyªÊƒ{
++,¸j—†"Ês´xıˆßDæôÁË‘èLNò¢Ènı8¾îaé1+³â<=.IçÎ1©æBË)[ì_«Á¥;¤Õ³àÒt%^;lÆ—ínãVyZLÖ  _†k²¡ô±KãLáj¼ìòVã(9èÄÍûømÆ ?D”;óXzÌ‡]úñy}sk=Ñô¬òBÊK[£x¿uÏ¶ã¾#®ÌRq>á‘±'+='ï–®Ö‡_‹ü‡›ßeà¹r²ú}èp†9'Sâ<]fì‹q[®
++/;2Ï„7ÿ¯%-,lågk¼¸§Ğ‚+³Ø¨NTıÎA<\bÁº¶‘i¯şc!O´°,aòÉH‘m
++ÛÕQlêÅËÕN<PlÆs¸KŒùÙNÛ*<UåÁ;M£¸¿Ø*Ê®ò¯6c[ê!.6R’T…{gü_öëøbÌB¡1Æ"W¢y¹n—;pÓ^~¹}Ä”[÷êğ|¥ÿî.ê‡óĞ.à(HÄùD¦Ôdhbø¤+€×j]x¸Ä‚[ö²'3Ãíç;ğè!§(^·kKj­Ø­â#	Çıû…Ù8ä±b¼‘‰ÿä_hæ–µ²à•R?ìÆ]Ì¸rWİE×‰¶ØŒÔ/vüìŠ¸ÅWä‰Î¾"Ï‚{a’¥Ã½A¼YçÆ£eVÜ§g§xfş;Õ2Uø•ÀnÒ¹,]‰ûòµXUgC™Î“Œs,	O‰@¯›»c¯®Ğ_šYøNÉëæ¤°êş—b®ß£Ü¤Æœ§ËüÎã]æ7´û‘oLÊG6GA¢3éC,Àç’4U+›†ğ\¥÷ì7à×œ“)÷«Ù«ÁÚ;vôúĞÆò$Ï–ïlü½ùZşò5K¦à$–s5^”÷º?qØ[óŒ¸ŒMêÄw>.W‹·zğ­",ˆoO·q4$:•‘…ü¹·ÆÛ¯ûCXÙ4„g*ì¸)W‹‹y|‹‘pîÍ×âõJ3¾ëô ËÅ¦t$RM¶à^®ë³U0øc|©fisWãÅt5Ü_Šm¸:›MÄ–_oWâ¯…&¬iÆîyv™çŠ<Qbhƒ,ÖLiòdÑşh™7îÑ²ç
++#í;ëwàñ¾îp£Ö€+4Î¹’¤áõJ³ ^¶k³ÑïaóˆÙjóŒ³@øvùJí¸eŸÛåE˜ës4xºÂ/zƒ‚ÿH·„YÌn`T¾×¼}İÂÛu<RjÁ-¹l@ÇH?wíÓ`e™ı>^[MÒ&´—¯ÖàÇÕxÑç¦Q<^áÂmùF\‘É&ubË…[ûq_ïõ =Aê*Æy¢ÓuË£pÿFÆòFşyÈ†ë²9÷02h’—1€G
++õø¤Å‰:K N®¶“\¨Gõ2¨GøòÍÁQÇ‹gÜé~_‘•ÛåÅºõ.S…§+ìXß6‚ı–¸h?ä5AòD§kòI¯hß¡aC»OUØñ§}:\’Îİ^ŒôóH¡ËØ°­ÇË³í$okêí‚y17·¹ø2ÎõïØd!„¼xd”Ùqó^~¹PbÌŸöéğn½ß¤QİB¤ÏÏBètõ^ñŸkßØáÇ+5.<PdÆ¥,Ú4£{é	Ÿ´8QiÅ ·ÈêÊ‚xYWÔÙørÎQ¥«ñ‰ì.ÿ÷CNÜ–oÄï³¸eQŒ¹4]‰‡K,ØÔ1*ÈFu‘îòD§;âÏ;\`ãË¾V4á"3®ÌRqüf$›[ö¨ñT©ëì(ÔŒp•h&šíÂèVç^_Ø9òÅâ,ia½Xy¾Ö‡‡ËøS¿åµp¢¾îåj'¾ˆÈâŒl³…<‘˜
++ù–86uâåj'îÙoà¸ÍH2WîÀÃ…z,­µ"[1„f{ˆİã‰æê‡n ^ì£– _â9ÊÑFYp/ğ÷û‹­¸1Wßì`á.æ³î—X°²i{M²ëR]ça!Otº*—pŞÑlı8>êÅ“‡ì¸q–ã6#½t™*Ü°G‡ûŠ¬x¼Â…·†ÑìfÑN´`–±%ıE_×`çK=+Zy6~ÎÛäùñÏJ7î-²âšl.JãºbÎíûôx¥Æ%Šëá;5nòD§«p&ïÜ¦ŠbeÓ©°ãš]<–ÅHè¸Ú\“­ÅÌx¤Ügª½x§itÚï®Ôæ ŠL1ÎODáŞüäş
++|·ÔÏË'=!ä³È[£x¬Â…»˜q»Ê‹>¿Ş®Ä#¥¬iF–nLöÅûÏSád!OtºòDv“×ÄÚàÅßŠÌ¼‘D.IÀÕÙÜ¾ß„¿•Úñøa7^«™Ó÷Ø}!ÎQDó•ìA¡Lçç‹<GÊ‘	¤²8?ocº'»qû~ÓI$7ähğrµSRæ#‡XÈÂ7†³ß¢Œ`y£÷0âWÛÙMg.ÜÚËwªğ‡î.0ãárªòàÍcşÿFû 3Åğç*¢¹Px#I,.Ôóå‡/ûÃ,ÖOË«õ#xôw˜qE&;üJ!—eà/…&¬hB®q‚EúSî Ü1ìåHItœ=²°ïX†&†UMCx¼Ü†Ëvp¼fD•_nWâÊ]jÜ˜«Ç½EV<VáÂs5>¼Û”øo·ûë¢Ù:j	&u©2òÅ£'¯›ûñ÷‡Ê¸eŸ+îÊ­{uxæ°ŸtX”Ï#æ0Wå‰~¤Íï}*±Oac‡OWØñ§}:ÕŒàsQš¿ÏRã†\=îØoÂCå<YéÁKuC‚ú–[ÒÀÖç+¢ÙÈNÚàrEÆ _Øyø¨[~gã_;¹ÚnÁu9Z6¦“X*1cIƒÛTQá´"¯	²'ú‘btöïQÚ`¯×ºqû>=.ŞÆ9‡æÊúï2U¸i¯wXğ@©OW{ç|v=™ù´'c`’óÑL|ÖâJÚÀóâ!_Ô9:ê“AS:?®öà¯%6Ü«Çe¼¿]r¹:K…ªø¨k,qß‹>?y¢Ì ß®bMË0(6ã’tsgÒØ5]‰«viğÇ\=ş\hÁ#å<YåÁë#’ûş[Ú@?ÏÍßÊºä]=÷a““/éx¢ñÿ»¬Uš[ä(µãÖ<#®f7yÉ6Ğ¹{¿Ëù°]ÍU÷D¤c˜…<Ñ¹
++ù}¦I¬oÁ3‡íøÃnÎ=Lòrñ6®Ü¥ÆÍû¸ëÀñ&sÏÖxñjı°ìv`.m	 ßåüEt.Kk­I°òUÃ|Aç Èı ı|­•;pwWîRãBNà’ÍuÙjüó wPl›bqà4ùXÈıh0ğãª{ïÖ¿ã4“è•õ+2U¸qïñ•õËìxºÚƒ7¡#¼òÏÍİÚ{Ò³r=¯›‹%-â„_82„T¸pç3®ÎÖà’tvö•zcûMxç¨‡«îÈy¢””””{©uN6©c=—îÀ5ÙZÜt¢Xä OVzDyf]YÖ€-ç\Ftº7+-ìX/"iƒŸiÅs'VÚÿ”gÄ5ÙZŞ£+£U÷ç+ØØáG•gİ…”j7y’¯r½ÿª±â»y)³pùÕv%.ß©Â{t¸ó€÷Ûğøa7^ªZ”»Ö™ V·QçàuD§xõpò¶•Ò³ŸkhËr6ş?ªòà¾"+¯}“inÏÓcÙ1Ò¹ê.är²'ùp†Æ±[9„§ËŒì0ÏÌû¼úµ»µ¸y¯.´àÑCN<UÅUõd&µ9€cŒsÑ–$ñŒ|½5È—q>ë%íÊ·Ç*\¸·ÈŠ?æêqén—å¹¾íJü­È„um#È5N°HI:g”Å<IW¯'‚ï:=¸?_Ë±š™ÓÜö‡ş”gÄıÅ6<UåÁ+G‡Y88›ûÂœÓˆRR¸µ^,Ú½ã	_ª;~ıŞ"+®ËÑ²h—y®Ùu¼Qİg=Å"¾KŞb!OÒRg	`c£×gsË<3ósë7ìÑáı&ü­Ôgª½’¼ºM.ÙĞ‚ÚÏ+êHæ¸µ^6÷…µ	İrtøïig¶öãö}z¼RãÂ÷Â‰*ÀBÄ¯ÆÀŠ:.ãİîÌ9òÛŒA\¿G‡»Ìx¨Ìçk}x«q”Å¯DÓèçüFòÅ­õÂWëCê<Ï³?WëÃ_Kl¸%ÏˆkwkqQÏ2?m+| ØŒ¥Ç|ÈÒ±ğ•`£,äIœªŒ£X}”Å;3ıÜuGÏv`Iƒ_õ‡P`c‹jŒ®Ìî›ÏTóŠ:’)n­¾5íÁh¯7ŒàÑCNÜ]`ÆM{¸Œ«ìÌ4¹"Sû
++-ø¨k%vŞí.õôûYÈ“x6ŒbM½Å;s27îÑâ‰ƒ6¼qÄ»F±ç}ZXÈË3ß+ÃpExEÉ·Ö[µíìÒ‹G†ğÈA'î-²âÚİ¼ê9w÷İ?æêñp¹/Õ?_Öf‘+“3òJ®È“ÀÒb]ƒ—íà<&÷¾,•˜ñB•k[G°S;†bÛì~lN×³°•iŞï²˜'yIæÖú»öi ğr;ÌÙ¸"q¬hâİæ «ñáÑCNÜ±ß„k²5lBÇœ7¿ÏRãî3­ñN;á}ÖÏkãä’ò$@åz?Ş«·ãòï²›Ÿ2Ux ÈŒg;°ºyÛTQä›'d¼c!/ï¬h¢ŞÉûæI&’¹µşÇlnsAé‹ò¥KII±ÆĞ`b[-4â÷YjggfÜàç¦½<TîÀ[şóNv_*c,re²"¯f³;ˆ2+ël¸"ƒ?FËc^À_MxªÂå>lŒb¯iq¯/Í6L² e°ßÀº‚d ™[ëOÏ#…zìWËêÅ+Ñú±±Ñšp}6Ï³3³Ë{t¸·ÈŠgª½³ä¶ªÙØN.…¼.ÈB’ç˜-ˆ›œ¸r'‹wIßx’§ÇmXÒàÅwÊ0rãIóXÈ3?f}'›j“Ä%skı¹òNµ%t†Ş™¸ ÚÀ¶/^<dÂÕ™,Ú™¹­ºßuÀŒT¸ğæ1ÿ¼&¸tí8]ä 0…YÈSbıcØÑëÃí¹İËovàÎ|<dÃš–a¤©¢³>Ç¾˜É3ÇYÄ2'óQwjÿ$ç@’¦/Z]‚0.KWbEEšÑ¼„®ĞøÉíñ¯6ã®}üaæ–_nWâ†=:<TæÀËuÃ:¹í6N²Ğ•ÉŠ¼-ÂBã ~Ï–9~K$—gâ<=^¬rbC»[…ß[%ßÂB95+Û‚èôò¾y’ 2_T“Ê_èğI‹‡ô£°’ÿRÚƒã¨5ğy«/W˜q[®š“?3¯\­Á]f<=‡íò³É>sœ…®LbáŠ<-¢wäxÇy^'ê\–1€û
++ŒxıˆëÛwŒãx·Ÿ…<3MR›8Àsó$5®°¸'JÜŸ¯Åê£6lnsa¿jG-Aô{¾¾etê|ÜìÄK‡L<ïÇ,ÌŠÇNnË7á‘ƒN¼1Ïíò³I1ï—M¸µš72ñ?wôúp7wœ‰2¿Ş®ÄßŠ_ó¶¡İ¿èè™Ö)®ÌY“6ÈÛ²HBœ¡qéoOŞ¦XÿšaòN÷Ëìxáˆ/i“Y)\Ù¤{„…<-ŒjS /2q,Q.IWâæ\-şyĞ†ÚıHSIûêÑòÌy²®#kˆçæI"®ÛÅÆk³˜¹j—÷ZÎz§{2Î‹±À•Oê½,äiî´Ã1¬?æÀU™Ü…&†\³K}²{ü—}!Ùw…6òÌù³ª-ˆvÏÍ“¼UeáäÇ0˜ßg©ñ§|#=äÂ»MÂ›ÀV·‡XàÊ(µnò4{»Cx¨@Ç1]ÈsMæ şZhÂ«µ.lîbŸ‰ML‹XÈ33Ì’– Ê,1Î$n¥Z?'D†™G®İ­Åİf<vÈ…7ü‚Ÿ¼6t‡YàrEhÚÕ÷›¸![Å±] «íÿ(·b}Û¶I|‹ü\Slg!ÏğÜ<ÉÌ»9i3ÌÌÎàº-î+¶â™j/Şnİ¤µ©'Â>åy:#æ –ÖZ9Æ,wäéñT…ëÚFoæjûLRj‹SfÖù°;{8Î¹’ÄiG¯“&ÃL{%Ï nÍ3â¯%6<_ë“Ä„õ…‚+9rÉQ`±§éå«†q_¾–c½@rÛ>=Ş¬sãã®QIu’Oh!ï`!ÏÌ-ïwÑ34Áù’ÄéA…cü6c·ì3à±
++^®–ädõÍ@Œ|>ºÏGh†Æpg7ú9óè659p)ï}Oj®Ø9ˆ{¿·ı[eÅ6^	ºPIeQÊÌã¾ùû‹yŸ2ÏÊ3òË•Yjü)Ïˆ‡Ëx½aDÕ-Wz$sÔ6u¼ °ÇQëB«o
++£Sü¡3Ôšx¶ÜÈq?‰Wş¥Ğ„%>|«`Ÿ’ÅÌ’¤Ìü’©æ¹y¡Ç‹œpIçò*ÜyÀŒ¿tâ•£Ã²œ vXÈ‹9%ö)vN¡Ù7…ÁQÀÃ^Î^t6iİ^ÜµOÃñ?Á¹pk?nİ«ÃËÕ.lQFPz–mà%vLûÇ°g’›ÏzCpExnD¤ËæÌH&¿Ş®ÄU»4¸c¿	OvËfÅı|ÉåE¢ËA'pÄt æ0Ï¼Ó¹õy"XSoÇÕ™ƒœ˜›sµxâ ëÛFPhÏê\w‰ıxÇuö,äádYk ƒ#<7O"’Şëå„Ìˆó|ûÎAÜ¾ß„¿•ÚñLµ—“ĞY’o‰ócO)w ^ s°EX¼Óùµ9BøW»Ï'î%ş^fÅ²FÒğ:¸R‹yòŒP²²-ˆÃV›'ù¤ÅÉIš|7ù?äèpO¡OUyDq»PRÈ¦J‚\qoò}şã]æ}cøœ‰h¦ê­A<QÂ£q‰é,¯Ã[u| sî,êYÈ3Âh‚—§²˜'ñx³ÒÂI›D.JSàª]ÜS`Á#xñÈ'–y¤ÄÎ=¡Üï®²³<Íİõşv€7Î,fîÚ§Áê£6TGO~ÄÛ"@ïPç™B™c
++%ö)Ü,ää‹¾‹yG
++õœÈ™„çšl-nË7â2;^ªcÑ¾ĞáÇfrîsïóó|;-ŒÌ~îçıï‹–§ËŒøªİn÷Ì:WûÆpÒ?…#î)”Ÿ(ìyÖ…<#İûæxnÄ‚ì™Å\i¿"S[öğP™ÏÖxñNÓ('ŠEÌ’– ?ô9‡œ@Ë 
++°£<-¬m=^Ü’£æü±àsQ?Şª² G9K`aÎÂZ#@‹o
++eö)ÙXØ³g¤–z'ÏÍ“H¼\aâdÏÌ»hÿ}–wœhF÷T•ï6q"HtV´ù¡·À©óoH§	Şş_Î´|‘‰¾épã²t%ç’ÌµYƒXÛ`GåÏ¶Ì/&]p
++-¾)úÙŠıÙÎÄs\e!Ï?K[HWñ¾y‰W*Ìœü™_ûvÃî<`ÆÃånPÖu†ù¡· Ûä;†u ğÆğßœh18CãXSoçœ²€¹'O‹·¹ÑãNşÇ·&0…Z×Jí?±gAÏB_¶(Ã¼oÄá£&v³gNÍå;U¸1W?ZğÏJ7^­æÀ.àlì‰ğCoi,<ãN‹¬ÇÁ»Õ¼Bn!rqšÿ,5 ³ßGp\°ï®o¨@ëDQÏmø,äQeu{ö0‹y:K Wfğ#A†ù]¦
++ÌÕãşbªòàµúà"ËçıQ~èÍ²³¼•w¸S(}Q¬mà
++ü|sEÆ Ş¨4£@="Ú÷VœB£w
++Î)ô,ä±]l¢oˆMğHş,5ò£AÂùíÎAÜ¼Ï€¿•ÚñÏJ7Ş<Æ{Ú¥Í
++òçjR×=8£,Ü)q\¡q,­å
++ü¼æ«J¼UeÁïçZ­ª\SÜrÏBx>èòûÄc—b7îVñCBÌ[·)píníÉ&tÏÖxÙ„NÂùnpŒz§¥Ùwü¼;GtJ$wxbıúc\”Æyh.ùMºïT[D½ò>æğñNnÁg!ÏõÌ<g8•~Xˆd•ı¦½zÜ]`Á?*\xõ(Ï³Ë-ß«XÈ7ú€QÀ7†ÿÅÑ›’áÛNv¡ŸK.Ù®@jUvÅûÙxbø¿½#@5WëYÈ3‚ÚbÏóò$:¾(–±áâ4?8+w©qÓ^î/¶á¹ŞhàÖx&€íšqÙ|Ì•Ÿø?ì0ïà–yJ²}>\‘Á3³É¯¶)°ìˆÅûWë[|S(wÈûŞzòL²“6ÈkéHÄŠ4#x¤PÏä—Û¸"S…[öğp¹OUyğÏ³3gI†nB’n¥ö)r^@ä9w–]Š!Ü”Ãch³9òµ²Î†"‹÷¹rÇğ©ÂqÿxÅy†ITR›l|Gâ§ôFñ]§×gófAîgOWâÚİZÜS`Áƒe<[ãå€ÉÌ*Ù†I	­¸O¡Ş3]p
++æˆKBS ÁC:Î_3ÌË&”hıüø]†Ğº§Pvâz;ò³È=‰xV¤¤ÊÀûõvœÅıìÊ3â¾b+?ìÆ[\egæŸ£øù* bs:°£– şQlà\6ƒÜ“§E¶bHĞ÷¼K'†_t/ê¥¸RÏBJÃ\•'	*ÔŒ`i­¿ãYÁãMè2qã^=î-²â©*Şnå È,Jö™ã¢û(«poP×3C,àI¸:œa<Å«YÏ›ËÒ•ØÔä@›#Ä÷9ÉÜQ|Ú9<u²>y†Y¸¬íàut$qåz?ÖÔÛñ L¶^ºc ×íÖâÏ…<qØWØ9I`ò-Â/äKìS¨tN¡uĞÙ¤Äáãf'‹ôl/ä¹wÁòá‚á)tL‰ºQyFHgå›İÜmD2ağÇ;0„5õvÜ›¯ÿ=·;¯´ßWdÅc.¼V?Âa!–â½Á3Å¢D'[1„Ë3xdìl¹{Ÿ[º<ĞÄøn‹ÈWÛ‰q¥…<#¤¬nçª<É”;<ñíQK¹CX}Ô‡õ‚mœwOwí?~¦ıIvgšÖ)átš·ÅÑæ‹Ãâ$G¢£ôFñJ…™Åút;ÏÒ•XSoÇQ?`¥ÀÚ†€ÃÎ3WêKx=yFh)1ñ‡L¢St8Ã(Õú±wp59ñV•Ï4áşıZ\9ˆKÓ•øíå‚ı×·ìQã¦nİ£ÆÃ…z,©µb—b½ãwE–[b¬òçH‘m
++EÖ8êÜqu'Qû¡ÛÃ‚}š¼pĞ„åßm	sFõSgôB(â‹lSœëÁe}'Ô$´÷;‚¬Á§ 	…|‰}
++Í¾)XÂ,ŞIÜZ‚øË~^'wÊ²t%>jr¢ÿÄÚ$ÆĞä:…³¿ßÂBè­AÚ(ÇH"!*0r5a!zñ^ç‚:Àmó$Ÿ¶¸X¸ÿ,è°­ÇË÷›RRRRRúıÀ!ô¹¦IÎõŒ`cÅ9f	‰%ÄIƒO
++m‹[Èt }~ÀÃ5H
++Êt~\Ÿ=ÈâıD^<dÂaÃ(?FiZ¶ĞìjÜ@y
++ù,ıçzF°Ù£ãª<‘ di"œÙ®ÈZ§PåšBË0àÖy’óèŞª²°xßÚße`ı1Œş1¾ã4cşO¿8êI\!Ÿcäâ
++#ìëèLÁI£DB`LbY+&F<)šçŠü^sùæIvÄÑ5ÌëâHšòUÃ¸4WÊİ“§Ån6¯£…øa,4ú•~¯9Î¹t¶(ÃS‰„àÃî%Fò+ò¥ ÏG¡eÚ Ï¼“tõz"øG±Aöüë•f´8B|×iQh‚Çç–òEèvÏBz–¶`	qU(©Ã¼«”‘ôŠü.ı
++-P²x'éÛ£’uñ~åÎ|×é~„÷SâX#€rt
++õ)ZãrıÜòVŞ"Ä;ğ::¢äâj<#ÕfwE¶8ê]“pDXÀ“ôıcxªÔ(ÛşÎ½ìáöyÊ"‰j^Ûïó-qòŒ(Òêç¸K”‡mc„Q¦Ä>ıÇOu
++8ì,ŞIFªM\¹s@–üã%ä«†ù¾“ iƒ@ëPjŸšõõsÜ-Éˆ!ŸõòøQR|ĞÉ_{ñee[ğ”óˆÅö)”ÙãèañNò³ş˜C–ü%”ëı|çIT½S3.äS9ß3"I¥7%T¾!ÊÁ‡e–·Qd›B±m
++Õ®8l\}'REñl¹ü¶Ò¿pĞÄv$zíCç.ä·kÇ9ß3¢Éº•'J{8Î-[Œè²¤%€5íAÔ9Æàäuq$c¹Ã¸(M^üÒZ+TCQ¾÷$)º Pëşéf•ùïU<úÈˆ+Õ\•'JŒ=:®Æ3âÉª¶ ŠL1¼æ„èız»lŠ÷·öããf'´Ãì@OÒçŒN¡ÍG¡5ïUcÜZÏˆl·d ®Hœc5Ñ¢şú;ÊsWŒ8ÎÁ«£ÁÅn¨D))))J_ÎÓÊ¢€¿![…O[\p†øş“|•šcø¢/Ä”Œh’gà®)¢Eõ"ÌÁ†ôöù"Wßˆ~.½×‹‹Ó’/à¯ÏVáÛN7ß¢ŸñFãÿ™6á7#ø,kpü&Z,jÿ$–ò—]F`YÚ@†:‚nß' ¢Ó,©µJ¾€¿<C‰¯;XÀ§ ÿc®q|ÙÏF¸Ù¢s,'ZkÚyİ#œ•÷Mİ!ìç6,¢iµqëµä‹ø/Z]ˆfÉ˜Ä¶ÁÖvğ»Şª¼‘=ˆÖ1¯2a„‘oaè9ÈÕnåäøšœ°Øå˜h¾:¼ã,èAåWå‰Ô†®&iù¨;„rKÖx¢sù°É)éş_5¼Fh1L`¯>ŠUm,ê™ä§ÓËf¥Dâ€×Í1‰ÏŠÖ ¾èñì;Ñ½tÈ$ÙşÅC&(½,à‰á°mtÙ‰IZ¾ìçª<Ñ‚xgã™_Wjñ>Q¢Yx®\šEü³åF´ØCˆ’ÀœÄN5;Ş3‰Ojs \•'šŸWã™ÄtÿNF½“g^‰fÃÃ_è$WÀ?Vl@™ÎÏñ€H <Ñøÿ)3ÇğIY2‰Ëª¶ ç ¢¹ÒNr a5Ë[ø~ ÌÕw¢9ñwïÓHª€¿=Wƒ}ƒÃˆjpdŸô„¸íIH¸ÀC4Gé*n§b'k;‚¨wÁÿß4¢Ùkw†ñ‡]ƒ’*â?káUrD¢ù!14‰SŒÍñ˜EÍšv®ÊÍšÊ?T ÌßºEF›‡gˆæ£ËÆow(%SÀ?Uj„~$ÆqH¤ªmcØÜÆ®Ò3‹|ÍÊü…•Y¸di"„‰@©Ö%RÀÿa× 2û}ˆ$Âcs_˜ß=Ì‚f5Wå‰f®Ã;Î_U™yçãêcğÅâğ­"Z˜"^*«ğoVZàO¬ç_•Hzl¡8YbXÍ[˜ÊN5„ˆfäı¼ÌÜï~ÿFF'¯!ZPÛz¼’(àoİ£F•q”ã‘LqŒáóŞˆ˜yÇ˜äÜAt.¥æfÖYÒÀnm¾(Wß‰ÚÖn$ŠøõÇü#’)g$ï”ÜvÏpUhÑ¬åj<3‹lê¡Ê6O4ş¾=DoS“Côü_öëĞé
++óŒˆR,'ºİ¯ã÷&3‡E#•‚s	Ñt25¼n9–¶?ÿŞâæöy¢EıaµÁ.êşâm
++líöpœ ¢iUÙÆ°©›Ûî™™çóŞç¢ÓYC“XÊ”9Ov¨"°‡ãD‰ÙwâŞNÿl¹ª!^DDç§Ä—ıÜvÏÌlU~p„«òD§ÈPs5™>ë;ƒ(0Æ`±€'J„/Z]¢.âÓº½+ˆhÖ´£“ÈÑE±²Ûî™³gCWå‰NROp``ÎøÅsmG•¶1–D‰üQµÏ'ê³ğ½6#"¢ùÛoˆbu{©ü&c¦Iƒß§D)))))_q;ó³lî£˜Û–ˆ­L'Ş{â—ÖZ9fÑ‚k÷ã£î¿Ï˜S²‘«òD))}Cüµ“ÁòÖ ÒUğÜQR³EYÀ_¸µêD´èı÷Ê0–µò›9SŒsÉ‹xn¡Ïä½œDIeğÇpãn•èŠø¿éÑÇ­ôD”@¾hü‚¯a.B1XİäüCòUcã@ ãv5vŞÿN”lğÄmwîÕˆ®ˆ_ÌÁ("J{8RsŒ+ô2O!WåI®Ö´³+¨ÜVß?ë¡ÆÎ!DBñL™QTüõÙ*i¸•ˆ„£ÄÃ‡İ!®ÒË0©ÍŞªDò“¥áusrÊº ´£“èˆäÍJ‹¨ŠøÇ‹0ò‡@"¦ßÖvp‘JnÉÔğˆÉˆ/ÿU¼£Sçß5l`G$D¢*â¿ëôp!"QèöMà‡£—KV´ásUdbÛ Wã¥œ÷ÚƒØ¡ŠÀ‰Ë§Hx¾ëôˆ¦€¿6kõ£ü@""ÑÑ&ñµ"Œ•\¼’|>éáut$Ê‘	¾ğÍÒ– JÌlúA$d¹Ã¢)âïÉÓB;Ì1…ˆÄÍ_°Gå·¢ÄÏÊr*IİwÊ0_x‰ecWV[%ºjS Š¤ˆ¬ØÀ1…ˆ$Å‰£Èã9z‰fs_˜óIW‡wœ/º„Î¿¯íâ¨ƒ<‘tºÂøå6…(ŠøgÊŒWˆHÒŠM1¼ßä9z‰¥ÁÉïb’¨]!¾äÈg½!ôqû‘˜ˆå®øÕX9¶‘l´yÆñ>Wè%“yV¤¨Á5Î_E¾¿EF§wœ‘È¤ÖXEQÄ/;bãøBD²ıNş²?Œ%-üæ{rU¤†“xø{BpFx­‘mns‰¢ˆÿ¢ÕÅ1†ˆdOíŸÀ¦®¿D>É$Æ_jv ß­Â˜ä`D$R¶ ‹x""Òø'‘ÆëšE›ro\!‰XİÎ³?bÉêö ²4XC,à‰ÄÌØ{sZğE|îÀÇ"¢³Ğ/èy½¸²²-È¹ÄïË~^7'–ìÑE9èIÄK‡L‚/âw+YÄÍÔ¶Á·Ü‹(éªç8/}`Ky6^ĞYÓÄAK.'’ÎÇ^WğE|‰g‰ˆfËšD¾!Êïk‘¬Ê{¢ñKùÔ’(}§äj¼P³¾3ˆ#ÏïIM­9 èş’í
++T³ˆ'"š·]š¯®x~s¾#ñiqóhú:¯Å ’ªÛr…}.ş ~”ãÑ*5Ç°¬•ß¸Brx‚ó‰Ëg½!¾¼ÊGİ!ÔØYÀIÙk‡Í‚.â¨G8-O4şË-1¬aƒiÁe‹’«ò$".®Æ!©Í|ĞdO$iİÂ>ÿU»›ãQšbx¿#ÈÆxJ«ò$ÜŞ#Œkä:¼ã4ˆäğã©Àï‹ßØèàXDD”`õÎ1ğ
++hadSwˆó 	_¹%Æ6‰+ğ_ô…Pïä
++<‘œù¾ø7*Íˆˆ’è°u›ºxä5Ùßèm.°‘À-áuIÖuÑÎx"ÙYUglÿD‰c‘@ÔØÇ°²[î“•­AÎ‰$\;T¾¨IØªÓÍs7D²ôC·G°Eü]û4—ˆˆ¨É=:¹å>)·ğêg G8­u…Üæ¾0]\'’«nwD°Eü•™Pz£Ÿˆˆ¬Ò6†{¸å>‘Y×ÁUy »9$"kÚƒPğ>J"Ù{¦Ì(È"şÂ­ıèvG8F‰D³{Ky46aÉTs$éôòº¹ÅÎg½!tò<¥¤¤ä(‡»_À»â‰ˆD©Ñ5Î¦x	È²Ö á8çJ†Í}a¾˜‹´…ş³ŞšÜ,à‰è8wxbïeéJAñ9Ê!UDD"WeÃ&î´]ÔìÖòø	@µmŒ/ä"m¡ïçz":Íº» ‹ø›¯ˆˆ$¤Í3•mìµX7NiF'9oR’?*;ø‚/d>ï¡™+ğD4#æ€ ‹ø×ó®x""©ªsŒa·Ü/x~sî¤ä©°Æø".Ğ¯r›ºBìBODçtÿ~­àŠø›rTğF&ş'ÿ:DDÒvÈÃ:^[· Gh­!®ÊSØÃqv¸\€¬j²‰WFŸO«ñN®(ÉÉ1×8V·³ _¨£´|¢(áöè¢|ç‘{B8âãËKDçeôá¢4áñ_¶»9†ÉWè&m.èQy¢ñk–p5~N[è×´QcgOD3·¤Ö*¸"şjÇ1""J)4Å°ª-ˆT~ëÏ)»BœO)q>ïeÃ‹Ùfe[Çxˆfé~TpEüu»9–Ñ)*¬cXÑÊú¹¤Üã¼J‹o`d‚gãg‘:ƒ(ãËIDst{®Fp…|•1À1ˆˆ¦•gˆbÏĞÏº^à“C‹n#¯Ÿ˜q'ÊB#x"š»­İÁñßuz8®ÑyíÖFÁ£¸3O©™u-¢Zû_´l¡/·Äà‰Æ/åCDs¥ôEWÄ?[näGÍ˜#G¾ıLá8çYZvs5ş\×Èåh£ğÅâÿÁ'…ˆæë•
++³ Šø[rÔü¸ "¢9qFâHWE°²[îÏ•<C”s--¼BSŒ/ØY’¡ğ¥#¢Ó`
++n5¾Â0ÊqˆˆæÅ_ğ2Ìúá«òhü|RhÁ¸"q6¸;-K[Ø­Â˜äÇ--¨û÷kUÄÿ»÷ÅÑÂQû'±]aM1M¶(Ãœsiáä¢|±NdYk ß(Â0YÀÑÂÛ£TÿLÏÅÑâĞø'ñï¾0O«5Ì¬3h!“lPq"_ö‡ag
++"ZD÷çk5Ş<:Æ1ˆˆ½ _ÛÁóó?æÓç^š¿ïxåEİ¾	¾PD´¨2û}‚*â¿huqÜ#"¢„ivã‹>6×şWs íqÎÁ4wÖ|Wã—´°®3ˆ.ğD” 7îV	¦ˆà€c%ÅQçÖÉ|…~sÏÊÓ<Èu‹Ëº :¼üŒˆg—BXgã+ìRODDÉuÌ5­ò¬GR›¨wòxÍA“k\v/Ì†®*¬1¾0D”p×d
++¦ˆ»ÚÂqˆˆ£ØÃû2\`\Óä|L³÷A§|^–å­›XÀQrlïõ
++¦ˆ¿,]É±ˆˆ)K‘]‡û£®ÊÓ,c²Ù²RlŠÁ_Ê¿:%Ëu»„³¿¥ËÃ"",{8½ú¨l
++úUm\•§YúÖ••mAìTGXÀQÒmns	¦ˆ´HÏ""C`iƒY4æÎ3D9?ÓùíÑE%ı"|Ş‚/ÿOş¥‰H®ÊL!ßdã½µDD$.¾hü‚{B’_„ä_šÎI˜DªD_€-Ê0Fx•	Ç'-NÁñËØ8>‘hõø&ğy¯túxC†:"¹3ğŸõ†ĞÉ«äˆH`†¢\œ¦Dİ®A‘DD$	GcØÔ’Üâdjs †À$çk:“Ú?)©3&ËZèöqˆ„ik·G0«ñ™ı>•DD$)õÎ1,o•V1¿m0ÂùšÎ$•³%k;‚¨²ñš"¶t‚(âŸ,5r¼$""É*5Ç°º]:¼û†¸PI?Óã›ıö“UmAäèØÑ‘ˆÄA(«ñ5¦ ÇM""’¼êV´Š¿ ßÜÇ³òô3kDü+Õ’– öè¢ğFãÿÍ¿$‰Á1[PEü•f~‘l¸#ñO·Š»'Ø’– Ã\•§”””rKL´rº*í(›>‘¸ìD!ßbçusDD$?Êá	lQ†EÛlM;¯££”””÷;‚¢ûê£î,!ğD$NÛz¼I/â_®àj<É[ïĞÖ´EyÄ¸ŞÉ`²&¶ëæÖuÑÃNôDÄB~ŞQ±§QJJJJ‹{ëD¶¸¹®“«ò²eNb©H¶“lì
++á0;Ñ‘DìKòÖú×y6ˆˆèE¦Ä´[ù€1Æù\v¨Ä±ÀÀU#"’–&[(©…|¿‡÷ĞM–&Â³ò$L}CÂ¾nniK y†(á8N"’¤dñËØ8®‡98‰LCŞ«ç¢§¬|Ùl#»-Ê0Œ6²#"i{¤PŸ”B^éã„ODD4Sƒ#ø²_ØîMAÖN² ÔÕø]!ØB\'"yØŞ›ø†wspŒ%""šÅğVµ	óü|–†GædAhà†®š\ã|øˆHv.Ù®Hh!oò³i(Ñ|Ô:Æ°¾SXõÔ²V®ÊK^}L0ÜûA›Øi‘ˆäks›+aEüûõv·DDD$WÔ
++ıg½!ÎóR&„‡-µ9€|v¢'"JIIII¹kŸfÑ‹øëvrÌ%""ZBép¿¤% Ÿ«ò’”£&½ıNu„ìˆˆ~¦Ù¾øWÑÒrÜ%""Z$*ÿ~'½Ù'=\•—¤d­Æ§6ğqOzğDDÓÊ^´"~{¯—c/QôO`mG0©}½“ıp$e‹29×Í­ë¢oh‚Ñyì[„b>E<QÂ5ºÆ“v~şc®ÊK‡bx")ìZØÈˆh6šl!Ü¹wşgæoÈV¡ÒÈíôDDDÉ´ßÅšöÄô¥fÖa’ğ]Wã—´É{‰ˆæå‹V~µmnWÓmhä]ñDDDB²E™Øóó©Í4º¸Å^Ôc	{Xv¨"0óşB"¢“ÖíÅƒºóï÷çkñm§®Ğ8Ç`"""ÒN"‘Ç—¶®ŠÀb}&
++hüšf÷8²4¬ë&¤€ßÜæ9x"¢EVo"G9„ï»<ø¾ËƒlÅê,¸Ã{ùo‡ˆˆHZÜãø¤'”¸eAnµ²VÏ8¶«ïK[	Ùº±²-ˆN/Wˆˆˆˆˆˆfã¨c,¡ÇŸ¿è¡ÕÃÚMIìÕG±±+„¥-‰;s±ª-ˆÃV¹ """""š+_,~A¡1†e­‰©ã–·°}0ŸÛíÎ‰£Ö1†Í}a¬lKì…ËZÈP³‘ÑBÖxß(Â	)èS›XİÄ>}pœµİbk÷c§:‚÷;‚XÒ’øû7÷…á‰Æoæ_‚ˆˆˆˆˆháéF'±±+”°fåë;ƒ¨¶s§õ‚3'QhŠáÓPÂÎ½O÷.ç}ğDDDDDD	QïÃ¦îPÂºÛŞB/›—Ï_·o?D°¦=˜”âıçùVæ”ˆˆˆˆˆ(ÁòQ¬l&¬Z¦&ÂíösQaÃÇ=¡yH]àî†.v6$"""""Jo4ş_ÙÚhÂvcoì
++¡ÚÆíöç¥òO`·6Šµó8ûşcÃ‚xûÅAş‰ˆˆˆˆˆ’lpdß)Ã	krşı@ú »ÛŸ¡İ;ï•sï<Ÿzâ<Ã'=!c0'ñYohAÉ7Dù‡#"""""ˆßVÍãö²ÔY6Ã«âêüq-îñ“W¤Îq»ûûAd¨#h÷ü´í½Ö>¶ ÛêW¶¡å/0DDDDDDBSm›Ó‘ì¯a|râ8wêWçÓ#0Êuu¾Ù=¯a,ŸC¿¤åøÖùoaÔØÇàŒœÙ€ u–	Ï÷ßó’Mîˆˆˆˆˆˆ„l¶Ûí×uáÇÑ;4ı†(>ïaMûñcŞ©ç¨G?è¢Å-³şiéªÈ¬¶?,i	`Ek÷„®Š Ñ5[èìİËÌ±ÿáşİÆÁóşÿßàä
++""""""1Ô›³)æwkO=BíŒÄÑæG®.Š÷…±®3ˆ­Á“W §¨W¶qHêW“»"qÔÚÇ°¹/ŒÕíA¬nbYëñÕğe­ÇÿE,k=÷ÚƒØĞÂ×Š0vi"¨sŒÁ0Ã­p+ZÏ%Á}!(†'Ğå›8ïŠü†®‹x""""""‘ÔºB³ºjÎ‹ÿÇ¹şßÔN¢Ù=BS[”a|ÑÂ¦®Öv‘£•I/5W$åÈÚ<ãèğ£İ36Ï8º}™˜×]}Û#çlP°¡+„ZûO«ëÛÏókMjs {õlrGDDDDD$U¶±¡ş1¹º¹Õ|¾Xü?4£“ÜÁ=hüšs58(2ºíÁ_s¾mõ+Zƒ™à…ˆˆˆˆˆHDfs^>µ9Àëå’eºëæ–¶¥‰À<óÒâ?ï]õ_+ØäˆˆˆˆˆHlG&°¦=8ãb>Caí—hŞñ3şu‡0pÕôêÈy›ÜUò@""""""Q*5Ç¦]¼]Òr¼7[êi«òÖWåê“ŸVãßk¢Ó{ş« 6§ÂúÎ \‘8ÿDDDDDD"õUÿô[ì·DPm;¥˜ÿ°›Î¦Ò6†5°¼5€Æ™µÿWOà\çéS§¹†€ˆˆˆˆˆˆÄE7:‰÷¦Ùb¿ñÄídhüÒ]ËOÜ¦Ö7Äi	ñAgpÖgÙËÌ±sŞc¿²Mîˆˆˆˆˆˆ¤ Ä;c!wu{¶ĞO;°­¡Ilì
++á#®Ê/¾f÷øœ
++î÷»ƒált@DDDDD$éªÈ)‹¹ËZèòYKvû&Ğãã¢®àx¢ñkŞï8{÷Âe­´yÆù‡#"""""’oá“Å|js eæë>±h÷œûÚ¹÷ñÊ9""""""©±…âØÔBê‰BşûÖ~¢±W=ëùø%-ÔØyå‘õM`õ‰æw_ôñ<¼hl>Çùx66 """""’¶£Î1¬íâó^Ö¢àŠÄOşú2İ•s%&‘ """""’ºNï82Ôlr.
++İ¾	,=ËùøõA8Âqş!‰ˆˆˆˆˆdàˆƒÇªE!ß0ıùøÔæ öê£ü#Éˆ10É:Pè¾QL>~M{ü	ÌÚiîOm`‡Šg#ˆˆˆˆˆˆˆE;:‰•mgò+Û‚PO°'""""""’&÷8–LÓèîû0‹x"""""""¡)1ÅÎht·²-ˆWã‰ˆˆˆˆˆˆ'S9ãlü¶A'""""""¤¯úÃgtª×øÙ©ˆˆˆˆˆˆH6v…NYÏÑòŞx"""""""Ar„ãXÓşSÇúõAXC\'""""""$c`«N\=·¤%€|Wã‰ˆˆˆˆˆˆË8~‡|js ÷„à‹Æÿ“ÿVˆˆˆˆˆˆˆJbE~U[Íîq®Æ	™bx«Ú‚øFfODDDDDD$t®q¬nbpd‚…<‘Ğ•YbØ®Š°ˆ'""""""ƒJÛT~®Æ‰BÜ‰Ç ÏÆÍØÿ
++qˆ“ğ   jeXIfII*    	      ò      ´      z              €       ˆ   (       1       2       ²      H      H      GIMP 2.10.22  2021:03:05 11:30:11              ğ                                        K         ÿØÿà JFIF      ÿÛ C 		
++ $.' ",#(7),01444'9=82<.342ÿÛ C			2!!22222222222222222222222222222222222222222222222222ÿÀ  ğ " ÿÄ           	
++ÿÄ µ   } !1AQa"q2‘¡#B±ÁRÑğ$3br‚	
++%&'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyzƒ„…†‡ˆ‰Š’“”•–—˜™š¢£¤¥¦§¨©ª²³´µ¶·¸¹ºÂÃÄÅÆÇÈÉÊÒÓÔÕÖ×ØÙÚáâãäåæçèéêñòóôõö÷øùúÿÄ        	
++ÿÄ µ  w !1AQaq"2B‘¡±Á	#3RğbrÑ
++$4á%ñ&'()*56789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz‚ƒ„…†‡ˆ‰Š’“”•–—˜™š¢£¤¥¦§¨©ª²³´µ¶·¸¹ºÂÃÄÅÆÇÈÉÊÒÓÔÕÖ×ØÙÚâãäåæçèéêòóôõö÷øùúÿÚ   ? ÷ú(¢€
++(¢€
++(¢€
++(¢€
++(¢€
++(¢€
++(¢€˜*–c€I¬=W7·÷q9á›|@ö1ùcõ©¼Eyö]1£SóÌv§ğük‘²ºk;Ø®ø$zãò®Ú9éÉ÷Øóñ8ŸgZ1[-ÏE¢š²"º« Aõêâ= ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¢Š­¨]+	®U_—Üöıi¤Û²šŠmœ—ˆ¯>Õª4jrƒëßü?
++È¥$³'$œ“I^ì ¡|ÕI¹ÍÉõ;/Ş}£O01ùà8ÿ €ŸÖ¶ëƒÑ/~Å©ÆÌqüô=ÿ <Wy^V*Ÿ%Kôg·‚«ÏJÏu QEÌu…Q@Q@Q@Q@Q@Q@Q@Q@Q@Q@Q@Q@rş+¼ËÅf§§Îÿ ^ß×ó®šI(G8D˜ú^wyr×—rÜ?WlãĞvÙƒ§Í>gĞàÇÕå§ÈºQEê(WM¢ê3_^Æ·ÄD2¸å¶…ÉôÜyîÕÌÖß†o~Ï¨á'ÿ ŸÔ~U†"7¦İµ:p³åª•ôgeEWŒ} QE QE QE QE QE QE QE QE QE QXº³q¥ß’İÙÆQÃ{ÿ úª9¼Qnª¯r§†S‡ê;ŠÙP¨Òin`ñ4¢Ú“³FõØ¤Y¢IPåC)õX›îQE ax¢÷É²[U?<ÇæöQÿ ×Çë\}]Õ¯~ß¨Ë09@v§û£üçñªUíaéû:iu>{WÚÕmlQEls…*;FêèHe9v4”P¢X]­õŒWüc‘è{Î¬×)ákİ“Ifçå“çO÷‡_ÓùWW^%z~În'ÑaêûZj]BŠ(¬ÂŠ( Š( Š( Š( Š( Š( Š( Š( İv×íZLÀ ^1æ/á×ôÍyõÕÅ†¢ë•Œ€BW¼}s^ÜFFx¯Š!û>°Ñ€¦}pÄW«–Ê÷ƒ<LŞå¨‰m¼HÈÀÈŒ?Š&ş•ĞØx¢åî/Œ‡ºIÉıyü«ÏéA*A‚:^ŒèB[£É§Š©™ëÖ+Ánà
++W ü+n`º†"ÛÌ6Ê„+z×’éz“ÈVœîaò9ş/jé´ÍRm6}ÊKDOÏ<ş½yµ°ikëáó%jš¦U¹¶–Òv†eÚëúûÔUÜİÙÚë¶+,l7c1È:c\eÕ¬Ös´3¦×‘¢µ£]TVz3FÒwZÅõ!¢Š+s˜(¢Š ’Ştš3‡F+ĞínîÖ9ãû®¹ú{WœVÆ‘®¶›†HÌ“‘ƒÊšåÅQu#xîÜ!R“RÙ­W¸¾µµÿ _qBÜşUÉ_xŠòè•‰¼ˆıüß‰ÿ 
++ÇfêÌ}É&¹éà›Ölê«˜Åis¹oé‹ÿ /ı¿ÂšŞ%Ò”e®èÂ¼»PÖvæ+F÷“ü+Id•³#³ŸV9®¨åĞ{¶pÏ7¨’G²Ëâ;Ésm/ h
++qÙªVºö¡y4ÛÂI(O"5ÿ =ëÍ4PçRM§ [ÜœW°è6bÓLŒ•IFö=ùéúVUèÒÃÇk¶taq±rŞÉv4” 1ÉÇ'Ö–Š+Ì=€¢Š( ¢Š( ¢Š( ¢Š( ¢Š( ¯,ñıˆSûT@ÜÄv=Áür^§\‰-êwPÈ§d¿0÷Èê?å]Øj·<ìÎ<ÔmæyÕ>üÉ‘0NæùÓî­Òá¢~£¡õµÑiúzAmõıæwŸcŒcğÍ{r’JçÍÂNÄ)¥½´ #y¶Ì~dn«î=ëT 3Ÿz(®vÛÜëQKbİ¥s§IºùOŞFåOá]Ûôİz×î'şOCì¡®RŠÂ¥Íólû±‚åİveÍCM¸Ó¦Ù*åİtj§W Ô®!„ÀÄMàÅ(Èü;Â«Hc/˜Õ•Oğ“œ~5qæÚDO‘ë¸eQVfQE Jşku+¤}Ñ²B“èqWj»uº¶x[ø‡Ğö4Öâ•í¡ÉNTÌÛQAÀ
++r?>õ++#²0Ã)Á†Ÿo\\$KÕ>•ÔpîÎ§ÁšC]İ«²ü¬rÜŸÌñ^¯X>ÓÃOßÆ÷ mÏİQĞ~õ½_?Œ­í*i²>«/¡ì¨«îÂŠ(®C¸(¢Š (¢Š (¢Š (¢Š (¢Š +ñ<w+zAºş©±ÓÕIú×aUïb’kfŠ4‰‹ğL¼…÷Æ9úVÔ*{9ÜÃKÚÓq¹æ7v0Ş(ó:0ê*Ít:‡†ÒÓOiã™ãpÀ ~•ÏW¯N¬j+ÅJ2¥+IjÂŠáGŒõ^hµaä‡ÁŒ.ÖAì{ş=k¯Óõ;=R6ÒeèWê;SRL™A¢İQTHQE QE QE#2¢v
++ª2I8 PÑ\n±ã˜âc˜‚Vœ|¿€ïşz×A¡^İjD77ùR¶x‡cÙ©RMÙàÒ»)_i—7Œ¯`FÄ|Ä€:Ö¶‘£yS*F¦iß8öôúÖí†ƒy|© Q-Èv=G°®·OÓ-ôØ¶D¹s÷¤n§ÿ ­YWÆ(.U«7Ãeòœ¹‹úØ}„[Z$.#FÆ ú§ßŠ³Eã·wv{ñJ*È(¢ŠC
++(¢€
++(¢€
++(¢€
++(¢€
++(¢€
++( $à¦€1¼Kv°i†ã˜à`rOùõ®.¯j÷ÇPÔPv>XÇû#üæ¨×³‡§ìág¹óøªŞÖ£kdPÔô{-^—Qe€ùd^~†¸}CÃz®ƒ?Úì$’H—‘$\2qéúWy{mašêdŠ1İ_`;šáõ_^_Kö]%4c´0‘şƒ·ó«Ÿ/S:|İ64´-ä‘Új $ìB¤ª>W'±éô®º¸MÁ÷_jŠ÷Qo(#‰.¬Äóè?_¥wÑÅ$§£7ĞS‹vÔSJşèÊ+’ñ7ŠntÍE´ë8“ÎGa»Œàõ³§jÂ[;A|ñA}2gÈfÚÇ“ŒÏ8¦¤›±.+³RŠà¢ñ©eªõ;p"-óG³k õ¿Ö»Ået¤aGqB’a(¸îbk'´Ñ‰„©šënDkÀSÚ¸é.µßNcXÃQ>X×ê{ş5ÖøƒÂğë$ÜDşMØ\n?u¾¿ã\¦¥«øNìÛO0ç&'?+{©¨ï®Æ°µ½İÎ«Cğ•¦˜k·CÄ|©ôÖº*ÌÒuëb1öy1(h_†â=ÅiÖ‘µ´2“wÔô-.D—Jµd9RÄÔUºå<-²g²sòÉóGş÷qù*êëÆ¯MÂmA†ªªSMQX›…Q@Q@Q@Q@Q@Q@bx“Pû5—Ù‘¿{?—¿çÓó­—uİ‚ªŒ’{
++óıJõµé'9ÚNËÚº°´¹çw²8±µ½>U»*QN6‘¶¨æ¬‹xÊ´a³(ÍzS«;3ÎÃàª×\ÑZyõ}—vyœ¾×umVFÔ$ïYƒ² şœW_¢øvÓJP–±.a¥a–?à+z8bG·Ï!ìJ¹km±Nÿ yÏSíX{hGewÓÌëşÎªÒs’K®»zùù¶ÒÀÃNrº:~5¢ª¨¡U@°(Ú zSÑGƒ,z
++R›z³ÅÚ'‹x¶­Ç2jøä”O0ù\wõ?*Á¾Ôî5YõO/iWV d„ÇAŸÂ¾—mÎæ*úîPõE#R[èz]¤&k ˆœ”‰ø
++Çë1Z¬¬ùÒ8µoëQ*Â¹ #:)	äœ’sê~µí«en¶ñÁå)HÔ"ç¨ `s[ZD…­T˜ÀşUŸZF¢¨ÊT?u£*ãJ*@sşÉëX·Ö÷Ğ5µäDî¬9ÛĞ×_T® âOõyeêEiíùW¼M<«JÔôü‘äºŸ‚ï,æûF“#J ä.í²/Ğğó®»CKôÒ!]Hæäg998Ï>¸­á6×Áf<g°£0ÜvîŞô*É;Å3g—JÖ©8§·Ï¢ùşHäh¥IáĞ†SèEz…Ú_YEpœnCÜW,‘ª¢\íëZŞ¿ò.šÑÏÉ7+ìßıè*1uióÚÖü‰ ã‡­ì¹¯}í²©×ÑEæ¨QE QE QE QE QE QHÌK1 I=«˜Õ<q§YËök/ôÛ’vù÷oğÍ]:s¨ís:•¡I^nÅêMºÙÆ~yy|v_ş¿ô®J¦º¹–òáç˜ƒ#õÀÀJ†½Š4½œ9O[ÚÔrè(b§*H>Ô+2¶T}©+ZßOÛ$20Q’3ÔçŠ©4·"íû¯bkO³Ç½ÿ Ö·_oj¹Œt¢ŠånîììJÊÈ+_L‰0rìpO§µfCÎûdõ?JÛ‚€§°ĞŸZç¯%kxh>nkQEÈwdjVŞ\jı×<û×¨®bó­1É}kJså•ÌªÃ69ú(¢»Ï0¡¨Úy±ù¨>uÜV>Ç½tõ›¨Û¢[£IÀæ¶§;{¬Â­;ûÈÉ¥VdpÊHe9v4”Vç)×'‹´ˆ­ã7·‰åréµ‰ğ«KñAŒü³M'û‘ëŠã5.MHÄ–ê¦}ÁW$ƒÛ&¤O‡Zã™­ıéôÊğ¸hë9XíXÜd´§ü¿à;|HÑW¤7­ôøªOøY:7üû_ß´ÿ â«?†š™ÿ Yyh¿î–?ĞSÿ áYßÏı¿ıòÔ½	}¢½®bşÏåşfô´G?2]ÇîÑèMjÚx³B¼!bÔ¡{I”ÿ Ğ±\4ßµd?º¹´{³)şU‘{ávÄ“O‘Ğ8ĞsGÕ°³øgø‹ë˜ê;¯Oò=¡Y]C#SÈ äZğ›-WRÒ%?dºš”Ï÷SÅwşñßöÔv”J“ÈvÇ*}Ö>„v5…lJkš:£§™ÒªÔd¹YÛÑEcëş#³Ğ-wÎ|ÉØ~î?3€÷®8BS|±Z„çEÊNÉ“Ï´-4ò¤Q¨Ë;¶ ük‹Õş#ZÛ–‹K„Ü¿O6Lª êJáõP×n7İJvòBœ"ı¯¿ZÚÑ<¨j
++³^“gçkÈßå^œ0t¨Ç»ù[4ñõ±äÃGçılbê!Õ5–"îéÚ2x‰>T€ëøÕ­N–	{ˆš6Æ:àóŞ½Û@Ñ|7h÷QÚ«ÉÏ›/ÌäöÇ§áŠå§™î'y¤9w9&º)b#4Õ8Ú'-l,©µ*²¼™QVf(%H#¨æº;vg·˜ Jƒ\üù³¤Ş`t+
++ÏdtĞ[°¢Š§wªØØçí7Q£vç-ùk›Ñ¶’»7ô¨ø’B?Ùùÿ JÒ¯>ˆv¶væ++9'“$—ì_b$ş•Îj5×/ò¦ïìñŸà·?^¿­GÔ«T“oDiı£B”NïÈõË«û;ßwu
++z.:ç¯|¡ÚäE$·L1qù¶?Jòè-/õIØÁÅÔ§–*¥ÏÔšè,¾ëw83$6«×÷¯“ù.Z×êT)ÿ f?ÚšßÁ‡ëÿ  Ğ¼ø™vùVEÏ+8úW={â½rÿ "]BUSü1|ƒéÆ3ø×egğÒÊ<Ëé¦>‘¨Aúæº/
++è–0éğ–Å(ŞñìÑõŒ%/‚7ş¼Ãê¸êßÄ—õØç¼=y%öÓ6érÊÇ×ÿ LV¥_Õ#	$L ·hÛÿ ×T*Ôıä­sGMÓ÷½‚¨ê±o¶:¡ı^¦J‚HFUEÙÜ‰+¦jŠ–'XŸÄ²/B¤+J6ÏQ²º1Mÿ <gïô#¯å]2šû¦ç¤w2 äpk¾ÑïÆ¡§¤„şõ~Y>¾¿q×zMí–LĞ6ÁükÊş}¿± êaÔ¹Ä2ü­ì{óëXb ªÓ¼u±Ó…©*yg¢gqE—{âMOİöF ÊpQ{ô\šòãIÚ*çµ)Æ
++òv5)’Ë4³H±Æ£,Îp ÷5Ãê_m£VM6Ñå~@’o•~¸ŸÒ¸S\Ôµ©w^\4ƒ?,KÂ/ĞçÖ»)`*OYh:¾iF÷Ÿàtş1ñ6¨FÖÖ–qÜÍÓíl¸Ùşéê—Ö°|'§Ïâ;?%IX%Y¤nÊªAş˜­Àz¢V[Ğlí?8ıãeíøşµéZV‘e£Z{(‚/VcË9õ'½tÔ¯KMÒ¦îÎJXZØªªµeeıZ•|I®Ç iMp@iÜì…ñ7¿°ë^AşŸ®êŸòÒêòá¿òº¯‰’±Õ¬¡?q .>¥ˆ?ú­†°Y-•ÍÆèÍëHSÁ ×“ù{QBØ|?µµÛO6+ì´Q©áŸÛhª·7[./ñc+û¾şÿ ÊºŠ+3WÖìô»I^K˜DÀac.2OÒ¼ÙJ¥iİêÙìFğôì´HÅñ>¡ç\-œgä‹—Çvÿ ëW?Tg×-7³™ZGc’BOãTäñò"€ŸBÍÒ½ªT\"¢‘óÕñ
++¤Ü›6©‚©f Ô“\ÌºÕäŸu–1è«ş5MäšáÆ÷y É$ÖÊ“êsºë¡ÖÃ­éöWd’™
++!»'ù~µ×å$‹KEQŸ½)ÎGĞc™¬kQÔîáØ£«Hvøuı+~×Á0nîÙ>ìC?Sşœ•¿{Viˆ’´‘Ï]kºçŞI·‘µÑÃ¯ãPZi—·Ä}šÖI8Üùô¯CµĞtË<­#-×süç?OÂ´ª%- Rw©#”Ò¾Ş^F³^]ÇoìA½ºò@?3]vŸàÃöcs 9İpw~œ/éZÚcfÓŒE\¯2¾*´¤ÓzÎBRQ»óÔlqÇkH¨Š0F ü)ÔQ\‡pQEQ¿Ötí-s{y'®ÒÙcÿ ÓQrvB””Uäì3V»ˆûšË¬MkÇöRíKyfÛŸšO~Oò®bçÅº¤ùñÀ¾‘§õ9¯R†§"º±âbq”yİıBª³jV6ä‰o B:ƒ Ïå^e=õİ×úû™¥ôäÔé:…Á+)Û=Âæx®Ÿª¥ñHäxÖô„N‚÷ZÓÅÄÍ*–ÈÚ‡¿×MüAàÅ„ÿ ´Bÿ Soê¶Ù¢X‰œåš‘<?)¼ÿ ²¤ÿ …n£M-Îg*­ícb?ˆº¬0ˆÒl±ÇÔYëâ)¯µ%ÒÁ8Æ"MŠ§Ö„Ğ çšF>ØzÓM°µ%kTœ)åe$†¬ù(Âî1Ô×¼ì§--OWŸQ	É#D˜Ø¬ÄíöÆqúT–~Ö¯ˆû>›pAë±Hú¶zÖŠÚT—Óí`·cş±#Œ)\uúÖ­qÏ0p÷cz…<ª5=ùÎş‡™éÿ ¯e!¯îâ8;#ÛÜ€}y®ÓHğ¾•¢á­­ÃL?å´¿3ş‡áŠØ¢¸ªâªÕÒOCĞ£‚¡GXÇ^áEW9Ös>0ğÃköÑËlÊ·p7ÔöÏojòëÍ+QÒäÿ J´§ï8üq^ïGZíÃãgJ<­]v+.§^\éÙonŠàÜÌG¡ÒGkq7ú¸dl÷Å{N¹yŸ`J*‰¤ùcàdzŸÃü+‡¯J†'ÚG™FÇ‘‰Áû)r¹ßúõ9ˆô[×êŠŸï7øU¸ü>x2Ü~
++¿Ö·(­Iª1F|Z-œ}Q¤>¬Â®ÇPŒG ÿ dbŸÔÖ¥}w†1ù1Ÿâ“Ó­g:Š*òfôè¹;AiıÏûÒ´UYÎI>€V…†‡”[YÚRNI<Ê´‘5Â(Qèyµ11æ|§­K	%¥¡pıT(õcV“JQ÷å'ıÑŠÑ¢°uæÎ¨áà¼Èá… M‘Œç“RQL–Xà‰å•Õ#A¹™ ¦²Õ³d’CëZñv—¢îåóîGü±‹’>§ ®;Ä¾;ñÓJf†Û£L8y>Ÿİ¯Ò¹í#@ÔuÙŠÚBJóÌü"ıOøs^
++Qç¬ì&¾dÜ½]÷4õojúä…Åœ'øa?7âİ,V-–™¨êó²ÛMpÄüÌF}Øğ?ô#áş›bKÒo&˜aáßñ®²8ã†5$TE
++£ ~rÆÒ¤¹hÄÎ9ujï›?—õ¢<ÓOøm}6úê+uşâíı ıkr‡ºm¿ µÃŸß1ËŠìh®YckIîvÃ.ÃÅ[”æ“G[|«8ã± ş”WKPËkß~1ŸQÁ¤±-üEK—ÀÎVÿ µÿ p3T+¬Ôü8÷.%·˜n¿ã\İÕ…Õ“m¸…“Ğö?wÑ«	$“<ºô*BMÉhW¢Š+s˜’‰mfYar½®×FÕ×S‰•Ô$èà:q\5[Ó¯ZÂú9×;AÃİ{×>"Š©3«ˆt§äzÔu’5t`ÊÃ â^9ï…Q@(¬Ojf²û2ŞÎ0}—¿çÓó«§9(£:µ89>‡;¬êP¿gSû¤ùcŞ¿gĞ' dÖŞŸá»«œ=Çî"ô#æ?‡oÆ½‡(RŠMÙJóm+¶bª³°U±à 95·cá›«Œ=Áò#ô<±ü;WMe¦ZX. ˆÆ·,·\Uq­éÑ£—ÅkQÜ£e¤ÙØ aˆşûòßıoÂ¯QEqJNNí„c«EX(¢ŠEQ@y_|RÚ¥Ëiör¡DØfSşµ‡ íùúWWã­m´­[ÂÅn.òŠGğ ûÇõñö¯?ğ¾„Úö®¶E´<ì?»éõ?â{W§‚£Å×©²ØñóóœÖ–ïòÿ 3KÂ>md‹ÛĞÉb§åQÁ”Oozõ;{xm`H-âXâA…E–(£‚$Š$T UU ÔúäÄb%ZW{v;°¸XaáhïÕ…Q\çPQE QE R2+©WPÊz‚2-‡}á›[Œ½¹0Iè9Søv®nûI¼°$Í)ÿ =•ÿ ë~5è ŒƒÔWU<Tá£Õu°Têj´g™Q]ÿ †ín²öÿ èò²>Søvü+—½Ó.´öÄñ¹ÀuåOã^…,D*m¹åVÂÔ¥ºÓ¹Ğø_Pó`k)ÏÌëéøZèkÎ-.^Îî;ˆşòãÔwèpL—$Ñœ£ŒŠàÅÒåŸ2Ù·<9ëò$¢Š+î(]jĞ[‡’LÈï-x_«tÌ¥½Ïˆu9d'ÊP%²v/`?Ï­vn‹"íu¾„qU4ÛcrÌã÷·=‡aø
++é¥US‹qZœ•¨Ê¬’“÷FØhöšxn—şz?'ğôü*ıV““¼™ÓF
++ÑVAET”QE QE QE `ø›Ãx¸0M	;.àAÆAzõ7‡|=‡¬ZÜË,ºIJà±ì>ƒúšØ¢´öÓäöwĞÇØSU=­½îáEVfÁEPEPEPEPEPHÊ®…C) ŒƒKE sú‡†!›2Y°‰úì?tÿ …WÒo§Ò¥:uå¼¼Ë´n#×Ô}=ë¨¨d¶†Yâ™Ğ#ÎÖô®…]¸òTÕ²Ã%>zZ?À‘d@èr§¡§QEsGÿÙ ü!…k   %tEXtdate:create 2021-05-14T09:45:53+00:00ŞÄ®›   %tEXtdate:modify 2021-05-14T09:45:53+00:00¯™'   tEXtexif:BitsPerSample 8, 8, 8í>'   !tEXtexif:DateTime 2021:03:05 11:30:11+áä.   tEXtexif:ImageLength 948=5‹   tEXtexif:ImageWidth 1010 K   tEXtexif:Software GIMP 2.10.22èçî   &tEXticc:copyright No copyright, use freely§šğ‚   tEXticc:description sRGB built-inã…ÉÅ    IEND®B`‚
+\ No newline at end of file
+diff --color -Naru uwufetch-2.1/uwufetch.c uwufetch-2.2/uwufetch.c
+--- uwufetch-2.1/uwufetch.c	2023-02-13 15:38:44.000000000 +0300
++++ uwufetch-2.2/uwufetch.c	2025-09-13 19:57:29.376368231 +0300
+@@ -14,7 +14,7 @@
+  */
+ 
+ #ifndef UWUFETCH_VERSION
+-	#define UWUFETCH_VERSION "unkown" // needs to be changed by the build script
++  #define UWUFETCH_VERSION "unkown" // needs to be changed by the build script
+ #endif
+ 
+ #define _GNU_SOURCE // for strcasestr
+@@ -39,10 +39,10 @@
+ #define LPINK "\x1b[38;5;213m"
+ 
+ #ifdef _WIN32
+-	#define BLOCK_CHAR "\xdb"			// block char for colors
++  #define BLOCK_CHAR "\xdb"     // block char for colors
+ char* MOVE_CURSOR = "\033[21C"; // moves the cursor after printing the image or the ascii logo
+ #else
+-	#define BLOCK_CHAR "\u2587"
++  #define BLOCK_CHAR "\u2587"
+ char* MOVE_CURSOR = "\033[18C";
+ #endif // _WIN32
+ 
+@@ -52,584 +52,628 @@
+ 
+ // all configuration flags available
+ struct configuration {
+-	struct flags show; // all true by default
+-	bool show_image,	 // false by default
+-			show_colors;	 // true by default
+-	int show_gpu[256]; // if show_gpu[0] == -2, all gpus are shown, if == -3 no gpu is shown
++  struct flags show; // all true by default
++  bool show_image,   // false by default
++      show_colors;   // true by default
++  bool show_gpu[256];
++  bool show_gpus; // global gpu toggle
+ };
+ 
+ // user's config stored on the disk
+ struct user_config {
+-	char *config_directory, // configuration directory name
+-			*cache_content;			// cache file content
+-	int read_enabled, write_enabled;
++  char *config_directory, // configuration directory name
++      *cache_content;     // cache file content
++  int read_enabled, write_enabled;
+ };
+ 
+ // reads the config file
+ struct configuration parse_config(struct info* user_info, struct user_config* user_config_file) {
+-	LOG_I("parsing config");
+-	char buffer[256]; // buffer for the current line
+-	// enabling all flags by default
+-	struct configuration config_flags;
+-	memset(&config_flags, true, sizeof(config_flags));
+-	memset(&config_flags.show_gpu, -1, 256 * sizeof(int)); // -1 means 'undefined'
+-	config_flags.show_gpu[0] = -2;												 // show all gpus
+-	config_flags.show_image	 = false;
+-	FILE* config						 = NULL;									// config file pointer
+-	if (user_config_file->config_directory == NULL) { // if config directory is not set, try to open the default
+-		if (getenv("HOME") != NULL) {
+-			char homedir[512];
+-			sprintf(homedir, "%s/.config/uwufetch/config", getenv("HOME"));
+-			LOG_V(homedir);
+-			config = fopen(homedir, "r");
+-			if (!config) {
+-				if (getenv("PREFIX") != NULL) {
+-					char prefixed_etc[512];
+-					sprintf(prefixed_etc, "%s/etc/uwufetch/config", getenv("PREFIX"));
+-					LOG_V(prefixed_etc);
+-					config = fopen(prefixed_etc, "r");
+-				} else
+-					config = fopen("/etc/uwufetch/config", "r");
+-			}
+-		}
+-	} else
+-		config = fopen(user_config_file->config_directory, "r");
+-	if (config == NULL) return config_flags; // if config file does not exist, return the defaults
+-
+-	int gpu_cfg_count = 0;
+-
+-	// reading the config file
+-	while (fgets(buffer, sizeof(buffer), config)) {
+-		sscanf(buffer, "distro=%s", user_info->os_name);
+-		if (sscanf(buffer, "image=\"%[^\"]\"", user_info->image_name)) {
+-			if (user_info->image_name[0] == '~') {																													// replacing the ~ character with the home directory
+-				memmove(&user_info->image_name[0], &user_info->image_name[1], strlen(user_info->image_name)); // remove the first char
+-				char temp[128] = "/home/";
+-				strcat(temp, user_info->user);
+-				strcat(temp, user_info->image_name);
+-				sprintf(user_info->image_name, "%s", temp);
+-			}
+-			config_flags.show_image = 1; // enable the image flag
+-		}
+-
+-		// reading other values
+-		if (sscanf(buffer, "user=%[truefalse]", buffer)) {
+-			config_flags.show.user = !strcmp(buffer, "true");
+-			LOG_V(config_flags.show.user);
+-		}
+-		if (sscanf(buffer, "os=%[truefalse]", buffer)) {
+-			config_flags.show.os = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.os);
+-		}
+-		if (sscanf(buffer, "host=%[truefalse]", buffer)) {
+-			config_flags.show.model = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.model);
+-		}
+-		if (sscanf(buffer, "kernel=%[truefalse]", buffer)) {
+-			config_flags.show.kernel = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.kernel);
+-		}
+-		if (sscanf(buffer, "cpu=%[truefalse]", buffer)) {
+-			config_flags.show.cpu = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.cpu);
+-		}
+-		if (sscanf(buffer, "gpu=%d", &config_flags.show_gpu[gpu_cfg_count])) {
+-			gpu_cfg_count++; // enabling single gpu
+-			if (sscanf(buffer, "gpu=%[truefalse]", buffer)) {
+-				if (strcmp(buffer, "false") == 0) config_flags.show_gpu[0] = -3; // enabling/disabling all gpus
+-				LOG_V(config_flags.show_gpu[gpu_cfg_count]);
+-			}
+-		}
+-		if (sscanf(buffer, "ram=%[truefalse]", buffer)) {
+-			config_flags.show.ram = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.ram);
+-		}
+-		if (sscanf(buffer, "resolution=%[truefalse]", buffer)) {
+-			config_flags.show.resolution = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.resolution);
+-		}
+-		if (sscanf(buffer, "shell=%[truefalse]", buffer)) {
+-			config_flags.show.shell = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.shell);
+-		}
+-		if (sscanf(buffer, "pkgs=%[truefalse]", buffer)) {
+-			config_flags.show.pkgs = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.pkgs);
+-		}
+-		if (sscanf(buffer, "uptime=%[truefalse]", buffer)) {
+-			config_flags.show.uptime = strcmp(buffer, "false");
+-			LOG_V(config_flags.show.uptime);
+-		}
+-		if (sscanf(buffer, "colors=%[truefalse]", buffer)) {
+-			config_flags.show_colors = strcmp(buffer, "false");
+-			LOG_V(config_flags.show_colors);
+-		}
+-	}
+-	LOG_V(user_info->os_name);
+-	LOG_V(user_info->image_name);
+-	fclose(config);
+-	config_flags.show.gpu = (config_flags.show_gpu[0] == -3);
+-	return config_flags;
++  LOG_I("parsing config");
++  char buffer[256]; // buffer for the current line
++  // enabling all flags by default
++  struct configuration config_flags;
++  memset(&config_flags, true, sizeof(config_flags));
++
++  config_flags.show_image = false;
++
++  FILE* config = NULL; // config file pointer
++
++  if (user_config_file->config_directory == NULL) { // if config directory is not set, try to open the default
++    if (getenv("HOME") != NULL) {
++      char homedir[512];
++      sprintf(homedir, "%s/.config/uwufetch/config", getenv("HOME"));
++      LOG_V(homedir);
++      config = fopen(homedir, "r");
++      if (!config) {
++        if (getenv("PREFIX") != NULL) {
++          char prefixed_etc[512];
++          sprintf(prefixed_etc, "%s/etc/uwufetch/config", getenv("PREFIX"));
++          LOG_V(prefixed_etc);
++          config = fopen(prefixed_etc, "r");
++        } else
++          config = fopen("/etc/uwufetch/config", "r");
++      }
++    }
++  } else
++    config = fopen(user_config_file->config_directory, "r");
++  if (config == NULL) return config_flags; // if config file does not exist, return the defaults
++
++  int gpu_cfg_count = 0;
++
++  // reading the config file
++  while (fgets(buffer, sizeof(buffer), config)) {
++    sscanf(buffer, "distro=%s", user_info->os_name);
++    if (sscanf(buffer, "image=\"%[^\"]\"", user_info->image_name)) {
++      if (user_info->image_name[0] == '~') {                                                          // replacing the ~ character with the home directory
++        memmove(&user_info->image_name[0], &user_info->image_name[1], strlen(user_info->image_name)); // remove the first char
++        char temp[128] = "/home/";
++        strcat(temp, user_info->user);
++        strcat(temp, user_info->image_name);
++        sprintf(user_info->image_name, "%s", temp);
++      }
++      config_flags.show_image = 1; // enable the image flag
++    }
++
++    // reading other values
++    if (sscanf(buffer, "user=%[truefalse]", buffer)) {
++      config_flags.show.user = !strcmp(buffer, "true");
++      LOG_V(config_flags.show.user);
++    }
++    if (sscanf(buffer, "os=%[truefalse]", buffer)) {
++      config_flags.show.os = strcmp(buffer, "false");
++      LOG_V(config_flags.show.os);
++    }
++    if (sscanf(buffer, "host=%[truefalse]", buffer)) {
++      config_flags.show.model = strcmp(buffer, "false");
++      LOG_V(config_flags.show.model);
++    }
++    if (sscanf(buffer, "kernel=%[truefalse]", buffer)) {
++      config_flags.show.kernel = strcmp(buffer, "false");
++      LOG_V(config_flags.show.kernel);
++    }
++    if (sscanf(buffer, "cpu=%[truefalse]", buffer)) {
++      config_flags.show.cpu = strcmp(buffer, "false");
++      LOG_V(config_flags.show.cpu);
++    }
++    if (sscanf(buffer, "gpu=%d", &gpu_cfg_count)) {
++      if (gpu_cfg_count > 255) {
++        LOG_E("gpu config index is too high, setting it to 255");
++        gpu_cfg_count = 255;
++      } else if (gpu_cfg_count < 0) {
++        LOG_E("gpu config index is too low, setting it to 0");
++        gpu_cfg_count = 0;
++      }
++      config_flags.show_gpu[gpu_cfg_count] = false;
++      LOG_V(config_flags.show_gpu[gpu_cfg_count]);
++    }
++    if (sscanf(buffer, "gpus=%[truefalse]", buffer)) { // global gpu toggle
++      if (strcmp(buffer, "false") == 0) {
++        config_flags.show_gpus = false;
++        config_flags.show.gpu  = false; // enable getting gpu info
++      } else {
++        config_flags.show_gpus = true;
++        config_flags.show.gpu  = true;
++      }
++      LOG_V(config_flags.show_gpus);
++      LOG_V(config_flags.show.gpu);
++    }
++    if (sscanf(buffer, "ram=%[truefalse]", buffer)) {
++      config_flags.show.ram = strcmp(buffer, "false");
++      LOG_V(config_flags.show.ram);
++    }
++    if (sscanf(buffer, "resolution=%[truefalse]", buffer)) {
++      config_flags.show.resolution = strcmp(buffer, "false");
++      LOG_V(config_flags.show.resolution);
++    }
++    if (sscanf(buffer, "shell=%[truefalse]", buffer)) {
++      config_flags.show.shell = strcmp(buffer, "false");
++      LOG_V(config_flags.show.shell);
++    }
++    if (sscanf(buffer, "pkgs=%[truefalse]", buffer)) {
++      config_flags.show.pkgs = strcmp(buffer, "false");
++      LOG_V(config_flags.show.pkgs);
++    }
++    if (sscanf(buffer, "uptime=%[truefalse]", buffer)) {
++      config_flags.show.uptime = strcmp(buffer, "false");
++      LOG_V(config_flags.show.uptime);
++    }
++    if (sscanf(buffer, "colors=%[truefalse]", buffer)) {
++      config_flags.show_colors = strcmp(buffer, "false");
++      LOG_V(config_flags.show_colors);
++    }
++  }
++  LOG_V(user_info->os_name);
++  LOG_V(user_info->image_name);
++  fclose(config);
++  return config_flags;
+ }
+ 
+ // prints logo (as an image) of the given system.
+ int print_image(struct info* user_info) {
+-	LOG_I("printing image");
++  LOG_I("printing image");
+ #ifndef __IPHONE__
+-	char command[256];
+-	if (strlen(user_info->image_name) < 1) {
+-		char* repl_str = strcmp(user_info->os_name, "android") == 0 ? "/data/data/com.termux/files/usr/lib/uwufetch/%s.png"
+-										 : strcmp(user_info->os_name, "macos") == 0 ? "/usr/local/lib/uwufetch/%s.png"
+-																																: "/usr/lib/uwufetch/%s.png";
+-		sprintf(user_info->image_name, repl_str, user_info->os_name); // image command for android
+-		LOG_V(user_info->image_name);
+-	}
+-	sprintf(command, "viu -t -w 18 -h 9 %s 2> /dev/null", user_info->image_name); // creating the command to show the image
+-	LOG_V(command);
+-	if (system(command) != 0) // if viu is not installed or the image is missing
+-		printf("\033[0E\033[3C%s\n"
+-					 "   There was an\n"
+-					 "    error: viu\n"
+-					 "  is not installed\n"
+-					 " or the image file\n"
+-					 "   was not found\n"
+-					 "   see IMAGES.md\n"
+-					 "   for more info.\n\n",
+-					 RED);
++  char command[256];
++  if (strlen(user_info->image_name) < 1) {
++    char* repl_str = strcmp(user_info->os_name, "android") == 0 ? "/data/data/com.termux/files/usr/lib/uwufetch/%s.png"
++                     : strcmp(user_info->os_name, "macos") == 0 ? "/usr/local/lib/uwufetch/%s.png"
++                                                                : "/usr/lib/uwufetch/%s.png";
++    sprintf(user_info->image_name, repl_str, user_info->os_name); // image command for android
++    LOG_V(user_info->image_name);
++  }
++  sprintf(command, "viu -t -w 18 -h 9 %s 2> /dev/null", user_info->image_name); // creating the command to show the image
++  LOG_V(command);
++  if (system(command) != 0) // if viu is not installed or the image is missing
++    printf("\033[0E\033[3C%s\n"
++           "   There was an\n"
++           "    error: viu\n"
++           "  is not installed\n"
++           " or the image file\n"
++           "   was not found\n"
++           "   see IMAGES.md\n"
++           "   for more info.\n\n",
++           RED);
+ #else
+-	// unfortunately, the iOS stdlib does not have system(); because it reports that it is not available under iOS during compilation
+-	printf("\033[0E\033[3C%s\n"
+-				 "   There was an\n"
+-				 "   error: images\n"
+-				 "   are currently\n"
+-				 "  disabled on iOS.\n\n",
+-				 RED);
++  // unfortunately, the iOS stdlib does not have system(); because it reports that it is not available under iOS during compilation
++  printf("\033[0E\033[3C%s\n"
++         "   There was an\n"
++         "   error: images\n"
++         "   are currently\n"
++         "  disabled on iOS.\n\n",
++         RED);
+ #endif
+-	return 9;
++  return 9;
+ }
+ 
+ // Replaces all terms in a string with another term.
+ void replace(char* original, char* search, char* replacer) {
+-	char* ch;
+-	char buffer[1024];
+-	while ((ch = strstr(original, search))) {
+-		ch = strstr(original, search);
+-		strncpy(buffer, original, ch - original);
+-		buffer[ch - original] = 0;
+-		sprintf(buffer + (ch - original), "%s%s", replacer, ch + strlen(search));
+-		original[0] = 0;
+-		strcpy(original, buffer);
+-	}
++  char* ch;
++  char buffer[1024];
++  int offset = 0;
++  while ((ch = strstr(original + offset, search))) {
++    strncpy(buffer, original, ch - original);
++    buffer[ch - original] = 0;
++    sprintf(buffer + (ch - original), "%s%s", replacer, ch + strlen(search));
++    original[0] = 0;
++    strcpy(original, buffer);
++    offset = ch - original + strlen(replacer);
++  }
+ }
+ 
+ // Replaces all terms in a string with another term, case insensitive
+ void replace_ignorecase(char* original, char* search, char* replacer) {
+-	char* ch;
+-	char buffer[1024];
++  char* ch;
++  char buffer[1024];
++  int offset = 0;
+ #ifdef _WIN32
+-	#define strcasestr(o, s) strstr(o, s)
++  #define strcasestr(o, s) strstr(o, s)
+ #endif
+-	while ((ch = strcasestr(original, search))) {
+-		strncpy(buffer, original, ch - original);
+-		buffer[ch - original] = 0;
+-		sprintf(buffer + (ch - original), "%s%s", replacer, ch + strlen(search));
+-		original[0] = 0;
+-		strcpy(original, buffer);
+-	}
++  while ((ch = strcasestr(original + offset, search))) {
++    strncpy(buffer, original, ch - original);
++    buffer[ch - original] = 0;
++    sprintf(buffer + (ch - original), "%s%s", replacer, ch + strlen(search));
++    original[0] = 0;
++    strcpy(original, buffer);
++    offset = ch - original + strlen(replacer);
++  }
+ }
+ 
+ #ifdef _WIN32
+ // windows sucks and hasn't a strstep, so I copied one from https://stackoverflow.com/questions/8512958/is-there-a-windows-variant-of-strsep-function
+ char* strsep(char** stringp, const char* delim) {
+-	char* start = *stringp;
+-	char* p;
+-	p = (start != NULL) ? strpbrk(start, delim) : NULL;
+-	if (p == NULL)
+-		*stringp = NULL;
+-	else {
+-		*p			 = '\0';
+-		*stringp = p + 1;
+-	}
+-	return start;
++  char* start = *stringp;
++  char* p;
++  p = (start != NULL) ? strpbrk(start, delim) : NULL;
++  if (p == NULL)
++    *stringp = NULL;
++  else {
++    *p       = '\0';
++    *stringp = p + 1;
++  }
++  return start;
+ }
+ #endif
+ 
+ // uwufies distro name
+ void uwu_name(struct info* user_info) {
+ #define STRING_TO_UWU(original, uwufied) \
+-	if (strcmp(user_info->os_name, original) == 0) sprintf(user_info->os_name, "%s", uwufied)
+-	// linux
+-	STRING_TO_UWU("alpine", "Nyalpine");
+-	else STRING_TO_UWU("amogos", "AmogOwOS");
+-	else STRING_TO_UWU("android", "Nyandroid");
+-	else STRING_TO_UWU("arch", "Nyarch Linuwu");
+-	else STRING_TO_UWU("arcolinux", "ArcOwO Linuwu");
+-	else STRING_TO_UWU("artix", "Nyartix Linuwu");
+-	else STRING_TO_UWU("debian", "Debinyan");
+-	else STRING_TO_UWU("devuan", "Devunyan");
+-	else STRING_TO_UWU("deepin", "Dewepyn");
+-	else STRING_TO_UWU("endeavouros", "endeavOwO");
+-	else STRING_TO_UWU("EndeavourOS", "endeavOwO");
+-	else STRING_TO_UWU("fedora", "Fedowa");
+-	else STRING_TO_UWU("femboyos", "FemboyOWOS");
+-	else STRING_TO_UWU("gentoo", "GentOwO");
+-	else STRING_TO_UWU("gnu", "gnUwU");
+-	else STRING_TO_UWU("guix", "gnUwU gUwUix");
+-	else STRING_TO_UWU("linuxmint", "LinUWU Miwint");
+-	else STRING_TO_UWU("manjaro", "Myanjawo");
+-	else STRING_TO_UWU("manjaro-arm", "Myanjawo AWM");
+-	else STRING_TO_UWU("neon", "KDE NeOwOn");
+-	else STRING_TO_UWU("nixos", "nixOwOs");
+-	else STRING_TO_UWU("opensuse-leap", "OwOpenSUSE Leap");
+-	else STRING_TO_UWU("opensuse-tumbleweed", "OwOpenSUSE Tumbleweed");
+-	else STRING_TO_UWU("pop", "PopOwOS");
+-	else STRING_TO_UWU("raspbian", "RaspNyan");
+-	else STRING_TO_UWU("rocky", "Wocky Linuwu");
+-	else STRING_TO_UWU("slackware", "Swackwawe");
+-	else STRING_TO_UWU("solus", "sOwOlus");
+-	else STRING_TO_UWU("ubuntu", "Uwuntu");
+-	else STRING_TO_UWU("void", "OwOid");
+-	else STRING_TO_UWU("xerolinux", "xuwulinux");
+-
+-	// BSD
+-	else STRING_TO_UWU("freebsd", "FweeBSD");
+-	else STRING_TO_UWU("openbsd", "OwOpenBSD");
+-
+-	// Apple family
+-	else STRING_TO_UWU("macos", "macOwOS");
+-	else STRING_TO_UWU("ios", "iOwOS");
++  if (strcmp(user_info->os_name, original) == 0) sprintf(user_info->os_name, "%s", uwufied)
++  // linux
++  STRING_TO_UWU("alpine", "Nyalpine");
++  else STRING_TO_UWU("amogos", "AmogOwOS");
++  else STRING_TO_UWU("android", "Nyandroid");
++  else STRING_TO_UWU("arch", "Nyarch Linuwu");
++  else STRING_TO_UWU("arcolinux", "ArcOwO Linuwu");
++  else STRING_TO_UWU("artix", "Nyartix Linuwu");
++  else STRING_TO_UWU("debian", "Debinyan");
++  else STRING_TO_UWU("devuan", "Devunyan");
++  else STRING_TO_UWU("deepin", "Dewepyn");
++  else STRING_TO_UWU("endeavouros", "endeavOwO");
++  else STRING_TO_UWU("EndeavourOS", "endeavOwO");
++  else STRING_TO_UWU("fedora", "Fedowa");
++  else STRING_TO_UWU("femboyos", "FemboyOWOS");
++  else STRING_TO_UWU("gentoo", "GentOwO");
++  else STRING_TO_UWU("gnu", "gnUwU");
++  else STRING_TO_UWU("guix", "gnUwU gUwUix");
++  else STRING_TO_UWU("linuxmint", "LinUWU Miwint");
++  else STRING_TO_UWU("manjaro", "Myanjawo");
++  else STRING_TO_UWU("manjaro-arm", "Myanjawo AWM");
++  else STRING_TO_UWU("neon", "KDE NeOwOn");
++  else STRING_TO_UWU("nixos", "nixOwOs");
++  else STRING_TO_UWU("opensuse-leap", "OwOpenSUSE Leap");
++  else STRING_TO_UWU("opensuse-tumbleweed", "OwOpenSUSE Tumbleweed");
++  else STRING_TO_UWU("pop", "PopOwOS");
++  else STRING_TO_UWU("raspbian", "RaspNyan");
++  else STRING_TO_UWU("rocky", "Wocky Linuwu");
++  else STRING_TO_UWU("slackware", "Swackwawe");
++  else STRING_TO_UWU("solus", "sOwOlus");
++  else STRING_TO_UWU("ubuntu", "Uwuntu");
++  else STRING_TO_UWU("void", "OwOid");
++  else STRING_TO_UWU("xerolinux", "xuwulinux");
++  else STRING_TO_UWU("menhera", "MenheraOS");
++
++  // BSD
++  else STRING_TO_UWU("freebsd", "FweeBSD");
++  else STRING_TO_UWU("openbsd", "OwOpenBSD");
++
++  // Apple family
++  else STRING_TO_UWU("macos", "macOwOS");
++  else STRING_TO_UWU("ios", "iOwOS");
+ 
+-	// Windows
+-	else STRING_TO_UWU("windows", "WinyandOwOws");
++  // Windows
++  else STRING_TO_UWU("windows", "WinyandOwOws");
+ 
+-	else sprintf(user_info->os_name, "%s", "unknown");
++  else sprintf(user_info->os_name, "%s", "unknown");
+ #undef STRING_TO_UWU
+ }
+ 
+ // uwufies kernel name
+ void uwu_kernel(char* kernel) {
+ #define KERNEL_TO_UWU(str, original, uwufied) \
+-	if (strcmp(str, original) == 0) sprintf(str, "%s", uwufied)
++  if (strcmp(str, original) == 0) sprintf(str, "%s", uwufied)
+ 
+-	LOG_I("uwufing kernel");
++  LOG_I("uwufing kernel");
+ 
+-	char* temp_kernel = kernel;
+-	char* token;
+-	char splitted[16][128] = {};
+-
+-	int count = 0;
+-	while ((token = strsep(&temp_kernel, " "))) { // split kernel name
+-		strcpy(splitted[count], token);
+-		count++;
+-	}
+-	strcpy(kernel, "");
+-	for (int i = 0; i < 16; i++) {
+-		// replace kernel name with uwufied version
+-		KERNEL_TO_UWU(splitted[i], "Linux", "Linuwu");
+-		else KERNEL_TO_UWU(splitted[i], "linux", "linuwu");
+-		else KERNEL_TO_UWU(splitted[i], "alpine", "Nyalpine");
+-		else KERNEL_TO_UWU(splitted[i], "amogos", "AmogOwOS");
+-		else KERNEL_TO_UWU(splitted[i], "android", "Nyandroid");
+-		else KERNEL_TO_UWU(splitted[i], "arch", "Nyarch Linuwu");
+-		else KERNEL_TO_UWU(splitted[i], "artix", "Nyartix Linuwu");
+-		else KERNEL_TO_UWU(splitted[i], "debian", "Debinyan");
+-		else KERNEL_TO_UWU(splitted[i], "deepin", "Dewepyn");
+-		else KERNEL_TO_UWU(splitted[i], "endeavouros", "endeavOwO");
+-		else KERNEL_TO_UWU(splitted[i], "EndeavourOS", "endeavOwO");
+-		else KERNEL_TO_UWU(splitted[i], "fedora", "Fedowa");
+-		else KERNEL_TO_UWU(splitted[i], "femboyos", "FemboyOWOS");
+-		else KERNEL_TO_UWU(splitted[i], "gentoo", "GentOwO");
+-		else KERNEL_TO_UWU(splitted[i], "gnu", "gnUwU");
+-		else KERNEL_TO_UWU(splitted[i], "guix", "gnUwU gUwUix");
+-		else KERNEL_TO_UWU(splitted[i], "linuxmint", "LinUWU Miwint");
+-		else KERNEL_TO_UWU(splitted[i], "manjaro", "Myanjawo");
+-		else KERNEL_TO_UWU(splitted[i], "manjaro-arm", "Myanjawo AWM");
+-		else KERNEL_TO_UWU(splitted[i], "neon", "KDE NeOwOn");
+-		else KERNEL_TO_UWU(splitted[i], "nixos", "nixOwOs");
+-		else KERNEL_TO_UWU(splitted[i], "opensuse-leap", "OwOpenSUSE Leap");
+-		else KERNEL_TO_UWU(splitted[i], "opensuse-tumbleweed", "OwOpenSUSE Tumbleweed");
+-		else KERNEL_TO_UWU(splitted[i], "pop", "PopOwOS");
+-		else KERNEL_TO_UWU(splitted[i], "raspbian", "RaspNyan");
+-		else KERNEL_TO_UWU(splitted[i], "rocky", "Wocky Linuwu");
+-		else KERNEL_TO_UWU(splitted[i], "slackware", "Swackwawe");
+-		else KERNEL_TO_UWU(splitted[i], "solus", "sOwOlus");
+-		else KERNEL_TO_UWU(splitted[i], "ubuntu", "Uwuntu");
+-		else KERNEL_TO_UWU(splitted[i], "void", "OwOid");
+-		else KERNEL_TO_UWU(splitted[i], "xerolinux", "xuwulinux");
+-
+-		// BSD
+-		else KERNEL_TO_UWU(splitted[i], "freebsd", "FweeBSD");
+-		else KERNEL_TO_UWU(splitted[i], "openbsd", "OwOpenBSD");
+-
+-		// Apple family
+-		else KERNEL_TO_UWU(splitted[i], "macos", "macOwOS");
+-		else KERNEL_TO_UWU(splitted[i], "ios", "iOwOS");
+-
+-		// Windows
+-		else KERNEL_TO_UWU(splitted[i], "windows", "WinyandOwOws");
+-
+-		if (i != 0) strcat(kernel, " ");
+-		strcat(kernel, splitted[i]);
+-	}
++  char* temp_kernel = kernel;
++  char* token;
++  char splitted[16][128] = {};
++
++  int count = 0;
++  while ((token = strsep(&temp_kernel, " "))) { // split kernel name
++    strcpy(splitted[count], token);
++    count++;
++  }
++  strcpy(kernel, "");
++  for (int i = 0; i < 16; i++) {
++    // replace kernel name with uwufied version
++    KERNEL_TO_UWU(splitted[i], "Linux", "Linuwu");
++    else KERNEL_TO_UWU(splitted[i], "linux", "linuwu");
++    else KERNEL_TO_UWU(splitted[i], "alpine", "Nyalpine");
++    else KERNEL_TO_UWU(splitted[i], "amogos", "AmogOwOS");
++    else KERNEL_TO_UWU(splitted[i], "android", "Nyandroid");
++    else KERNEL_TO_UWU(splitted[i], "arch", "Nyarch Linuwu");
++    else KERNEL_TO_UWU(splitted[i], "artix", "Nyartix Linuwu");
++    else KERNEL_TO_UWU(splitted[i], "debian", "Debinyan");
++    else KERNEL_TO_UWU(splitted[i], "deepin", "Dewepyn");
++    else KERNEL_TO_UWU(splitted[i], "endeavouros", "endeavOwO");
++    else KERNEL_TO_UWU(splitted[i], "EndeavourOS", "endeavOwO");
++    else KERNEL_TO_UWU(splitted[i], "fedora", "Fedowa");
++    else KERNEL_TO_UWU(splitted[i], "femboyos", "FemboyOWOS");
++    else KERNEL_TO_UWU(splitted[i], "gentoo", "GentOwO");
++    else KERNEL_TO_UWU(splitted[i], "gnu", "gnUwU");
++    else KERNEL_TO_UWU(splitted[i], "guix", "gnUwU gUwUix");
++    else KERNEL_TO_UWU(splitted[i], "linuxmint", "LinUWU Miwint");
++    else KERNEL_TO_UWU(splitted[i], "manjaro", "Myanjawo");
++    else KERNEL_TO_UWU(splitted[i], "manjaro-arm", "Myanjawo AWM");
++    else KERNEL_TO_UWU(splitted[i], "neon", "KDE NeOwOn");
++    else KERNEL_TO_UWU(splitted[i], "nixos", "nixOwOs");
++    else KERNEL_TO_UWU(splitted[i], "opensuse-leap", "OwOpenSUSE Leap");
++    else KERNEL_TO_UWU(splitted[i], "opensuse-tumbleweed", "OwOpenSUSE Tumbleweed");
++    else KERNEL_TO_UWU(splitted[i], "pop", "PopOwOS");
++    else KERNEL_TO_UWU(splitted[i], "raspbian", "RaspNyan");
++    else KERNEL_TO_UWU(splitted[i], "rocky", "Wocky Linuwu");
++    else KERNEL_TO_UWU(splitted[i], "slackware", "Swackwawe");
++    else KERNEL_TO_UWU(splitted[i], "solus", "sOwOlus");
++    else KERNEL_TO_UWU(splitted[i], "ubuntu", "Uwuntu");
++    else KERNEL_TO_UWU(splitted[i], "void", "OwOid");
++    else KERNEL_TO_UWU(splitted[i], "xerolinux", "xuwulinux");
++
++    // BSD
++    else KERNEL_TO_UWU(splitted[i], "freebsd", "FweeBSD");
++    else KERNEL_TO_UWU(splitted[i], "openbsd", "OwOpenBSD");
++
++    // Apple family
++    else KERNEL_TO_UWU(splitted[i], "macos", "macOwOS");
++    else KERNEL_TO_UWU(splitted[i], "ios", "iOwOS");
++
++    // Windows
++    else KERNEL_TO_UWU(splitted[i], "windows", "WinyandOwOws");
++
++    if (i != 0) strcat(kernel, " ");
++    strcat(kernel, splitted[i]);
++  }
+ #undef KERNEL_TO_UWU
+-	LOG_V(kernel);
++  LOG_V(kernel);
+ }
+ 
+ // uwufies hardware names
+ void uwu_hw(char* hwname) {
+-	LOG_I("uwufing hardware")
++  LOG_I("uwufing hardware")
+ #define HW_TO_UWU(original, uwuified) replace_ignorecase(hwname, original, uwuified);
+-	HW_TO_UWU("lenovo", "LenOwO")
+-	HW_TO_UWU("cpu", "CC\bPUwU"); // for some reasons this caused a segfault, using a \b (backspace) char fixes it
+-	HW_TO_UWU("core", "Cowe");
+-	HW_TO_UWU("gpu", "GG\bPUwU")
+-	HW_TO_UWU("graphics", "Gwaphics")
+-	HW_TO_UWU("corporation", "COwOpowation")
+-	HW_TO_UWU("nvidia", "NyaVIDIA")
+-	HW_TO_UWU("mobile", "Mwobile")
+-	HW_TO_UWU("intel", "Inteww")
+-	HW_TO_UWU("radeon", "Radenyan")
+-	HW_TO_UWU("geforce", "GeFOwOce")
+-	HW_TO_UWU("raspberry", "Nyasberry")
+-	HW_TO_UWU("broadcom", "Bwoadcom")
+-	HW_TO_UWU("motorola", "MotOwOwa")
+-	HW_TO_UWU("proliant", "ProLinyant")
+-	HW_TO_UWU("poweredge", "POwOwEdge")
+-	HW_TO_UWU("apple", "Nyaa\bpple")
+-	HW_TO_UWU("electronic", "ElectrOwOnic")
++  HW_TO_UWU("lenovo", "LenOwO")
++  HW_TO_UWU("cpu", "CPUwU");
++  HW_TO_UWU("core", "Cowe");
++  HW_TO_UWU("gpu", "GPUwU")
++  HW_TO_UWU("graphics", "Gwaphics")
++  HW_TO_UWU("corporation", "COwOpowation")
++  HW_TO_UWU("nvidia", "NyaVIDIA")
++  HW_TO_UWU("mobile", "Mwobile")
++  HW_TO_UWU("intel", "Inteww")
++  HW_TO_UWU("celeron", "Celewon")
++  HW_TO_UWU("radeon", "Radenyan")
++  HW_TO_UWU("geforce", "GeFOwOce")
++  HW_TO_UWU("raspberry", "Nyasberry")
++  HW_TO_UWU("broadcom", "Bwoadcom")
++  HW_TO_UWU("motorola", "MotOwOwa")
++  HW_TO_UWU("proliant", "ProLinyant")
++  HW_TO_UWU("poweredge", "POwOwEdge")
++  HW_TO_UWU("apple", "Nyapple")
++  HW_TO_UWU("electronic", "ElectrOwOnic")
++  HW_TO_UWU("processor", "Pwocessow")
++  HW_TO_UWU("microsoft", "MicOwOsoft")
++  HW_TO_UWU("ryzen", "Wyzen")
++  HW_TO_UWU("advanced", "Adwanced")
++  HW_TO_UWU("micro", "Micwo")
++  HW_TO_UWU("devices", "Dewices")
++  HW_TO_UWU("inc.", "Nyanc.")
++  HW_TO_UWU("lucienne", "Lucienyan")
++  HW_TO_UWU("tuxedo", "TUWUXEDO")
++  HW_TO_UWU("aura", "Uwura")
+ #undef HW_TO_UWU
+ }
+ 
++// uwufies package manager names
++void uwu_pkgman(char* pkgman_name) {
++  LOG_I("uwufing package managers")
++#define PKGMAN_TO_UWU(original, uwuified) replace_ignorecase(pkgman_name, original, uwuified);
++  // these package managers do not have edits yet:
++  // apk, apt, guix, nix, pkg, xbps
++  PKGMAN_TO_UWU("brew-cask", "bwew-cawsk");
++  PKGMAN_TO_UWU("brew-cellar", "bwew-cewwaw");
++  PKGMAN_TO_UWU("emerge", "emewge");
++  PKGMAN_TO_UWU("flatpak", "fwatpakkies");
++  PKGMAN_TO_UWU("pacman", "pacnyan");
++  PKGMAN_TO_UWU("port", "powt");
++  PKGMAN_TO_UWU("snap", "snyap");
++#undef PKGMAN_TO_UWU
++}
++
+ // uwufies everything
+ void uwufy_all(struct info* user_info) {
+-	LOG_I("uwufing everything");
+-	if (strcmp(user_info->os_name, "windows"))
+-		MOVE_CURSOR = "\033[21C"; // to print windows logo on not windows systems
+-	uwu_kernel(user_info->kernel);
+-	for (int i = 0; user_info->gpu_model[i][0]; i++) uwu_hw(user_info->gpu_model[i]);
+-	uwu_hw(user_info->cpu_model);
+-	LOG_V(user_info->cpu_model);
+-	uwu_hw(user_info->model);
+-	LOG_V(user_info->model);
++  LOG_I("uwufing everything");
++  if (strcmp(user_info->os_name, "windows"))
++    MOVE_CURSOR = "\033[21C"; // to print windows logo on not windows systems
++  uwu_kernel(user_info->kernel);
++  for (int i = 0; user_info->gpu_model[i][0]; i++) uwu_hw(user_info->gpu_model[i]);
++  uwu_hw(user_info->cpu_model);
++  LOG_V(user_info->cpu_model);
++  uwu_hw(user_info->model);
++  LOG_V(user_info->model);
++  uwu_pkgman(user_info->pkgman_name);
++  LOG_V(user_info->pkgman_name);
+ }
+ 
+ // prints all the collected info and returns the number of printed lines
+ int print_info(struct configuration* config_flags, struct info* user_info) {
+-	int line_count = 0;
++  int line_count = 0;
+ #ifdef _WIN32
+-	// prints without overflowing the terminal width
+-	#define responsively_printf(buf, format, ...)     \
+-		{                                               \
+-			sprintf(buf, format, __VA_ARGS__);            \
+-			printf("%.*s\n", user_info->ws_col - 4, buf); \
+-			line_count++;                                 \
+-		}
++  // prints without overflowing the terminal width
++  #define responsively_printf(buf, format, ...)     \
++    {                                               \
++      sprintf(buf, format, __VA_ARGS__);            \
++      printf("%.*s\n", user_info->ws_col - 4, buf); \
++      line_count++;                                 \
++    }
+ #else // _WIN32
+-	// prints without overflowing the terminal width
+-	#define responsively_printf(buf, format, ...)         \
+-		{                                                   \
+-			sprintf(buf, format, __VA_ARGS__);                \
+-			printf("%.*s\n", user_info->win.ws_col - 4, buf); \
+-			line_count++;                                     \
+-		}
+-#endif									// _WIN32
+-	char print_buf[1024]; // for responsively print
+-
+-	// print collected info - from host to cpu info
+-	if (config_flags->show.user)
+-		responsively_printf(print_buf, "%s%s%s%s@%s", MOVE_CURSOR, NORMAL, BOLD, user_info->user, user_info->host);
+-	uwu_name(user_info);
+-	if (config_flags->show.os)
+-		responsively_printf(print_buf, "%s%s%sOWOS     %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->os_name);
+-	if (config_flags->show.model)
+-		responsively_printf(print_buf, "%s%s%sMOWODEL  %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->model);
+-	if (config_flags->show.kernel)
+-		responsively_printf(print_buf, "%s%s%sKEWNEL   %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->kernel);
+-	if (config_flags->show.cpu)
+-		responsively_printf(print_buf, "%s%s%sCPUWU    %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->cpu_model);
+-
+-	if (config_flags->show_gpu[0] == -2) { // print all gpu models
+-		for (int i = 0; i < 256 && user_info->gpu_model[i][0]; i++)
+-			responsively_printf(print_buf, "%s%s%sGPUWU    %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->gpu_model[i]);
+-	} else if (config_flags->show_gpu[0] != -3) { // print only the configured gpu models
+-		for (int i = 0; i < 256; i++) {
+-			if (config_flags->show_gpu[i] >= 0)
+-				if (user_info->gpu_model[config_flags->show_gpu[i]][0])
+-					responsively_printf(print_buf, "%s%s%sGPUWU    %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->gpu_model[config_flags->show_gpu[i]]);
+-		}
+-	}
+-
+-	if (config_flags->show.ram) // print ram
+-		responsively_printf(print_buf, "%s%s%sMEMOWY   %s%i MiB/%i MiB", MOVE_CURSOR, NORMAL, BOLD, NORMAL, (user_info->ram_used), user_info->ram_total);
+-	if (config_flags->show.resolution) // print resolution
+-		if (user_info->screen_width != 0 || user_info->screen_height != 0)
+-			responsively_printf(print_buf, "%s%s%sWESOWUTION%s  %dx%d", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->screen_width, user_info->screen_height);
+-	if (config_flags->show.shell) // print shell name
+-		responsively_printf(print_buf, "%s%s%sSHEWW    %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->shell);
+-	if (config_flags->show.pkgs) // print pkgs
+-		responsively_printf(print_buf, "%s%s%sPKGS     %s%d: %s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->pkgs, user_info->pkgman_name);
+-	// #endif
+-	if (config_flags->show.uptime) {
+-		switch (user_info->uptime) { // formatting the uptime which is store in seconds
+-		case 0 ... 3599:
+-			responsively_printf(print_buf, "%s%s%sUWUPTIME %s%lim", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->uptime / 60 % 60);
+-			break;
+-		case 3600 ... 86399:
+-			responsively_printf(print_buf, "%s%s%sUWUPTIME %s%lih, %lim", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->uptime / 3600, user_info->uptime / 60 % 60);
+-			break;
+-		default:
+-			responsively_printf(print_buf, "%s%s%sUWUPTIME %s%lid, %lih, %lim", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->uptime / 86400, user_info->uptime / 3600 % 24, user_info->uptime / 60 % 60);
+-		}
+-	}
+-	// clang-format off
++  // prints without overflowing the terminal width
++  #define responsively_printf(buf, format, ...)         \
++    {                                                   \
++      sprintf(buf, format, __VA_ARGS__);                \
++      printf("%.*s\n", user_info->win.ws_col - 4, buf); \
++      line_count++;                                     \
++    }
++#endif                  // _WIN32
++  char print_buf[1024]; // for responsively print
++
++  // print collected info - from host to cpu info
++  if (config_flags->show.user)
++    responsively_printf(print_buf, "%s%s%s%s@%s", MOVE_CURSOR, NORMAL, BOLD, user_info->user, user_info->host);
++  uwu_name(user_info);
++  if (config_flags->show.os)
++    responsively_printf(print_buf, "%s%s%sOWOS     %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->os_name);
++  if (config_flags->show.model)
++    responsively_printf(print_buf, "%s%s%sMOWODEL  %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->model);
++  if (config_flags->show.kernel)
++    responsively_printf(print_buf, "%s%s%sKEWNEL   %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->kernel);
++  if (config_flags->show.cpu)
++    responsively_printf(print_buf, "%s%s%sCPUWU    %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->cpu_model);
++
++  for (int i = 0; i < 256; i++) {
++    if (config_flags->show_gpu[i])
++      if (user_info->gpu_model[i][0])
++        responsively_printf(print_buf, "%s%s%sGPUWU    %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->gpu_model[i]);
++  }
++
++  if (config_flags->show.ram) // print ram
++    responsively_printf(print_buf, "%s%s%sMEMOWY   %s%i MiB/%i MiB", MOVE_CURSOR, NORMAL, BOLD, NORMAL, (user_info->ram_used), user_info->ram_total);
++  if (config_flags->show.resolution) // print resolution
++    if (user_info->screen_width != 0 || user_info->screen_height != 0)
++      responsively_printf(print_buf, "%s%s%sWESOWUTION%s  %dx%d", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->screen_width, user_info->screen_height);
++  if (config_flags->show.shell) // print shell name
++    responsively_printf(print_buf, "%s%s%sSHEWW    %s%s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->shell);
++  if (config_flags->show.pkgs) // print pkgs
++    responsively_printf(print_buf, "%s%s%sPKGS     %s%d: %s", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->pkgs, user_info->pkgman_name);
++  // #endif
++  if (config_flags->show.uptime) {
++    switch (user_info->uptime) { // formatting the uptime which is store in seconds
++    case 0 ... 3599:
++      responsively_printf(print_buf, "%s%s%sUWUPTIME %s%lim", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->uptime / 60 % 60);
++      break;
++    case 3600 ... 86399:
++      responsively_printf(print_buf, "%s%s%sUWUPTIME %s%lih, %lim", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->uptime / 3600, user_info->uptime / 60 % 60);
++      break;
++    default:
++      responsively_printf(print_buf, "%s%s%sUWUPTIME %s%lid, %lih, %lim", MOVE_CURSOR, NORMAL, BOLD, NORMAL, user_info->uptime / 86400, user_info->uptime / 3600 % 24, user_info->uptime / 60 % 60);
++    }
++  }
++  // clang-format off
+ 	if (config_flags->show_colors)
+ 		printf("%s"	BOLD BLACK BLOCK_CHAR BLOCK_CHAR RED BLOCK_CHAR
+ 								BLOCK_CHAR GREEN BLOCK_CHAR BLOCK_CHAR YELLOW
+ 								BLOCK_CHAR BLOCK_CHAR BLUE BLOCK_CHAR BLOCK_CHAR
+ 								MAGENTA BLOCK_CHAR BLOCK_CHAR CYAN BLOCK_CHAR
+ 								BLOCK_CHAR WHITE BLOCK_CHAR BLOCK_CHAR NORMAL "\n", MOVE_CURSOR);
+-	// clang-format on
+-	return line_count;
++  // clang-format on
++  return line_count;
+ }
+ 
+ // writes cache to cache file
+ void write_cache(struct info* user_info) {
+-	LOG_I("writing cache");
+-	char cache_file[512];
+-	sprintf(cache_file, "%s/.cache/uwufetch.cache", getenv("HOME")); // default cache file location
+-	LOG_V(cache_file);
+-	FILE* cache_fp = fopen(cache_file, "w");
+-	if (cache_fp == NULL) {
+-		LOG_E("Failed to write to %s!", cache_file);
+-		return;
+-	}
+-	// writing all info to the cache file
+-	fprintf( // writing most of the values to config file
+-			cache_fp,
+-			"user=%s\nhost=%s\nversion_name=%s\nhost_model=%s\nkernel=%s\ncpu=%"
+-			"s\nscreen_width=%d\nscreen_height=%d\nshell=%s\npkgs=%d\npkgman_name=%"
+-			"s\n",
+-			user_info->user, user_info->host, user_info->os_name, user_info->model, user_info->kernel,
+-			user_info->cpu_model, user_info->screen_width, user_info->screen_height, user_info->shell,
+-			user_info->pkgs, user_info->pkgman_name);
++  LOG_I("writing cache");
++  char cache_file[512];
++  sprintf(cache_file, "%s/.cache/uwufetch.cache", getenv("HOME")); // default cache file location
++  LOG_V(cache_file);
++  FILE* cache_fp = fopen(cache_file, "w");
++  if (cache_fp == NULL) {
++    LOG_E("Failed to write to %s!", cache_file);
++    return;
++  }
++  // writing all info to the cache file
++  fprintf( // writing most of the values to config file
++      cache_fp,
++      "user=%s\nhost=%s\nversion_name=%s\nhost_model=%s\nkernel=%s\ncpu=%"
++      "s\nscreen_width=%d\nscreen_height=%d\nshell=%s\npkgs=%d\npkgman_name=%"
++      "s\n",
++      user_info->user, user_info->host, user_info->os_name, user_info->model, user_info->kernel,
++      user_info->cpu_model, user_info->screen_width, user_info->screen_height, user_info->shell,
++      user_info->pkgs, user_info->pkgman_name);
+ 
+-	for (int i = 0; user_info->gpu_model[i][0]; i++) // writing gpu names to file
+-		fprintf(cache_fp, "gpu=%s\n", user_info->gpu_model[i]);
++  for (int i = 0; user_info->gpu_model[i][0]; i++) // writing gpu names to file
++    fprintf(cache_fp, "gpu=%s\n", user_info->gpu_model[i]);
+ 
+-	fclose(cache_fp);
+-	return;
++  fclose(cache_fp);
++  return;
+ }
+ 
+ // reads cache file if it exists
+ int read_cache(struct info* user_info) {
+-	LOG_I("reading cache");
+-	char cache_file[512];
+-	sprintf(cache_file, "%s/.cache/uwufetch.cache", getenv("HOME")); // cache file location
+-	LOG_V(cache_file);
+-	FILE* cache_fp = fopen(cache_file, "r");
+-	if (cache_fp == NULL) return 0;
+-	char buffer[256];																	// line buffer
+-	int gpuc = 0;																			// gpu counter
+-	while (fgets(buffer, sizeof(buffer), cache_fp)) { // reading the file
+-		sscanf(buffer, "user=%99[^\n]", user_info->user);
+-		sscanf(buffer, "host=%99[^\n]", user_info->host);
+-		sscanf(buffer, "version_name=%99[^\n]", user_info->os_name);
+-		sscanf(buffer, "host_model=%99[^\n]", user_info->model);
+-		sscanf(buffer, "kernel=%99[^\n]", user_info->kernel);
+-		sscanf(buffer, "cpu=%99[^\n]", user_info->cpu_model);
+-		if (sscanf(buffer, "gpu=%99[^\n]", user_info->gpu_model[gpuc]) != 0) gpuc++;
+-		sscanf(buffer, "screen_width=%i", &user_info->screen_width);
+-		sscanf(buffer, "screen_height=%i", &user_info->screen_height);
+-		sscanf(buffer, "shell=%99[^\n]", user_info->shell);
+-		sscanf(buffer, "pkgs=%i", &user_info->pkgs);
+-		sscanf(buffer, "pkgman_name=%99[^\n]", user_info->pkgman_name);
+-	}
+-	LOG_V(user_info->user);
+-	LOG_V(user_info->host);
+-	LOG_V(user_info->os_name);
+-	LOG_V(user_info->model);
+-	LOG_V(user_info->kernel);
+-	LOG_V(user_info->cpu_model);
+-	LOG_V(user_info->gpu_model[gpuc]);
+-	LOG_V(user_info->screen_width);
+-	LOG_V(user_info->screen_height);
+-	LOG_V(user_info->shell);
+-	LOG_V(user_info->pkgs);
+-	LOG_V(user_info->pkgman_name);
+-	fclose(cache_fp);
+-	return 1;
++  LOG_I("reading cache");
++  char cache_file[512];
++  sprintf(cache_file, "%s/.cache/uwufetch.cache", getenv("HOME")); // cache file location
++  LOG_V(cache_file);
++  FILE* cache_fp = fopen(cache_file, "r");
++  if (cache_fp == NULL) return 0;
++  char buffer[256];                                 // line buffer
++  int gpuc = 0;                                     // gpu counter
++  while (fgets(buffer, sizeof(buffer), cache_fp)) { // reading the file
++    sscanf(buffer, "user=%99[^\n]", user_info->user);
++    sscanf(buffer, "host=%99[^\n]", user_info->host);
++    sscanf(buffer, "version_name=%99[^\n]", user_info->os_name);
++    sscanf(buffer, "host_model=%99[^\n]", user_info->model);
++    sscanf(buffer, "kernel=%99[^\n]", user_info->kernel);
++    sscanf(buffer, "cpu=%99[^\n]", user_info->cpu_model);
++    if (sscanf(buffer, "gpu=%99[^\n]", user_info->gpu_model[gpuc]) != 0) gpuc++;
++    sscanf(buffer, "screen_width=%i", &user_info->screen_width);
++    sscanf(buffer, "screen_height=%i", &user_info->screen_height);
++    sscanf(buffer, "shell=%99[^\n]", user_info->shell);
++    sscanf(buffer, "pkgs=%i", &user_info->pkgs);
++    sscanf(buffer, "pkgman_name=%99[^\n]", user_info->pkgman_name);
++  }
++  LOG_V(user_info->user);
++  LOG_V(user_info->host);
++  LOG_V(user_info->os_name);
++  LOG_V(user_info->model);
++  LOG_V(user_info->kernel);
++  LOG_V(user_info->cpu_model);
++  LOG_V(user_info->gpu_model[gpuc]);
++  LOG_V(user_info->screen_width);
++  LOG_V(user_info->screen_height);
++  LOG_V(user_info->shell);
++  LOG_V(user_info->pkgs);
++  LOG_V(user_info->pkgman_name);
++  fclose(cache_fp);
++  return 1;
+ }
+ 
+ // prints logo (as ascii art) of the given system.
+ int print_ascii(struct info* user_info) {
+-	FILE* file;
+-	char ascii_file[1024];
+-	// First tries to get ascii art file from local directory. Useful for debugging
+-	sprintf(ascii_file, "./res/ascii/%s.txt", user_info->os_name);
+-	LOG_V(ascii_file);
+-	file = fopen(ascii_file, "r");
+-	if (!file) { // if the file does not exist in the local directory, open it from the installation directory
+-		if (strcmp(user_info->os_name, "android") == 0)
+-			sprintf(ascii_file, "/data/data/com.termux/files/usr/lib/uwufetch/ascii/%s.txt", user_info->os_name);
+-		else if (strcmp(user_info->os_name, "macos") == 0)
+-			sprintf(ascii_file, "/usr/local/lib/uwufetch/ascii/%s.txt", user_info->os_name);
+-		else
+-			sprintf(ascii_file, "/usr/lib/uwufetch/ascii/%s.txt", user_info->os_name);
+-		LOG_V(ascii_file);
+-
+-		file = fopen(ascii_file, "r");
+-		if (!file) {
+-			// Prevent infinite loops
+-			if (strcmp(user_info->os_name, "unknown") == 0) {
+-				LOG_E("No\nunknown\nascii\nfile\n\n\n\n");
+-				return 7;
+-			}
+-			sprintf(user_info->os_name, "unknown"); // current os is not supported
+-			LOG_V(user_info->os_name);
+-			return print_ascii(user_info);
+-		}
+-	}
+-	char buffer[256]; // line buffer
+-	int line_count = 1;
+-	printf("\n");
+-	while (fgets(buffer, 256, file)) { // replacing color placecholders
+-		replace(buffer, "{NORMAL}", NORMAL);
+-		replace(buffer, "{BOLD}", BOLD);
+-		replace(buffer, "{BLACK}", BLACK);
+-		replace(buffer, "{RED}", RED);
+-		replace(buffer, "{GREEN}", GREEN);
+-		replace(buffer, "{SPRING_GREEN}", SPRING_GREEN);
+-		replace(buffer, "{YELLOW}", YELLOW);
+-		replace(buffer, "{BLUE}", BLUE);
+-		replace(buffer, "{MAGENTA}", MAGENTA);
+-		replace(buffer, "{CYAN}", CYAN);
+-		replace(buffer, "{WHITE}", WHITE);
+-		replace(buffer, "{PINK}", PINK);
+-		replace(buffer, "{LPINK}", LPINK);
+-		replace(buffer, "{BLOCK}", BLOCK_CHAR);
+-		replace(buffer, "{BLOCK_VERTICAL}", BLOCK_CHAR);
+-		replace(buffer, "{BACKGROUND_GREEN}", "\e[0;42m");
+-		replace(buffer, "{BACKGROUND_RED}", "\e[0;41m");
+-		replace(buffer, "{BACKGROUND_WHITE}", "\e[0;47m");
+-		printf("%s", buffer); // print the line after setting the color
+-		line_count++;
+-	}
+-	// Always set color to NORMAL, so there's no need to do this in every ascii file.
+-	printf(NORMAL);
+-	fclose(file);
+-	return line_count;
++  FILE* file;
++  char ascii_file[1024];
++  // First tries to get ascii art file from local directory. Useful for debugging
++  sprintf(ascii_file, "./res/ascii/%s.txt", user_info->os_name);
++  LOG_V(ascii_file);
++  file = fopen(ascii_file, "r");
++  if (!file) { // if the file does not exist in the local directory, open it from the installation directory
++    if (strcmp(user_info->os_name, "android") == 0)
++      sprintf(ascii_file, "/data/data/com.termux/files/usr/lib/uwufetch/ascii/%s.txt", user_info->os_name);
++    else if (strcmp(user_info->os_name, "macos") == 0)
++      sprintf(ascii_file, "/usr/local/lib/uwufetch/ascii/%s.txt", user_info->os_name);
++    else
++      sprintf(ascii_file, "/usr/lib/uwufetch/ascii/%s.txt", user_info->os_name);
++    LOG_V(ascii_file);
++
++    file = fopen(ascii_file, "r");
++    if (!file) {
++      // Prevent infinite loops
++      if (strcmp(user_info->os_name, "unknown") == 0) {
++        LOG_E("No\nunknown\nascii\nfile\n\n\n\n");
++        return 7;
++      }
++      sprintf(user_info->os_name, "unknown"); // current os is not supported
++      LOG_V(user_info->os_name);
++      return print_ascii(user_info);
++    }
++  }
++  char buffer[256]; // line buffer
++  int line_count = 1;
++  printf("\n");
++  while (fgets(buffer, 256, file)) { // replacing color placecholders
++    replace(buffer, "{NORMAL}", NORMAL);
++    replace(buffer, "{BOLD}", BOLD);
++    replace(buffer, "{BLACK}", BLACK);
++    replace(buffer, "{RED}", RED);
++    replace(buffer, "{GREEN}", GREEN);
++    replace(buffer, "{SPRING_GREEN}", SPRING_GREEN);
++    replace(buffer, "{YELLOW}", YELLOW);
++    replace(buffer, "{BLUE}", BLUE);
++    replace(buffer, "{MAGENTA}", MAGENTA);
++    replace(buffer, "{CYAN}", CYAN);
++    replace(buffer, "{WHITE}", WHITE);
++    replace(buffer, "{PINK}", PINK);
++    replace(buffer, "{LPINK}", LPINK);
++    replace(buffer, "{BLOCK}", BLOCK_CHAR);
++    replace(buffer, "{BLOCK_VERTICAL}", BLOCK_CHAR);
++    replace(buffer, "{BACKGROUND_GREEN}", "\e[0;42m");
++    replace(buffer, "{BACKGROUND_RED}", "\e[0;41m");
++    replace(buffer, "{BACKGROUND_WHITE}", "\e[0;47m");
++    printf("%s", buffer); // print the line after setting the color
++    line_count++;
++  }
++  // Always set color to NORMAL, so there's no need to do this in every ascii file.
++  printf(NORMAL);
++  fclose(file);
++  return line_count;
+ }
+ 
+ /* prints distribution list
+-	 distributions are listed by distribution branch
+-	 to make the output easier to understand by the user.*/
++   distributions are listed by distribution branch
++   to make the output easier to understand by the user.*/
+ void list(char* arg) {
+-	LOG_I("printing supported distro list");
+-	// clang-format off
++  LOG_I("printing supported distro list");
++  // clang-format off
+ 	printf("%s -d <options>\n"
+ 				 "  Available distributions:\n"
+ 				 "    "BLUE"Arch linux "NORMAL"based:\n"
+-				 "      "BLUE"arch, arcolinux, "MAGENTA"artix, endeavouros "GREEN"manjaro, manjaro-arm, "BLUE"xerolinux\n\n"
++				 "      "BLUE"arch, arcolinux, "MAGENTA"artix, endeavouros "GREEN"manjaro, manjaro-arm, "BLUE"xerolinux, "MAGENTA"menheraos\n\n"
+ 				 "    "RED"Debian/"YELLOW"Ubuntu "NORMAL"based:\n"
+ 				 "      "RED"amogos, debian, deepin, "GREEN"linuxmint, neon, "BLUE"pop, "RED"raspbian "YELLOW"ubuntu\n\n"
+ 				 "    "RED"BSD "NORMAL"based:\n"
+@@ -639,152 +683,154 @@
+ 				 "    "NORMAL"Other/spare distributions:\n"
+ 				 "      "BLUE"alpine, "PINK"femboyos, gentoo, "MAGENTA"slackware, "WHITE"solus, "GREEN"void, opensuse-leap, android, "YELLOW"gnu, guix, "BLUE"windows, "WHITE"unknown\n\n",
+ 				 arg); // Other/spare distributions colors
+-	// clang-format on
++  // clang-format on
+ }
+ 
+ // prints the usage
+ void usage(char* arg) {
+-	LOG_I("printing usage");
+-	printf("Usage: %s <args>\n"
+-				 "    -c  --config        use custom config path\n"
+-				 "    -d, --distro        lets you choose the logo to print\n"
+-				 "    -h, --help          prints this help page\n"
++  LOG_I("printing usage");
++  printf("Usage: %s <args>\n"
++         "    -c  --config        use custom config path\n"
++         "    -d, --distro        lets you choose the logo to print\n"
++         "    -h, --help          prints this help page\n"
+ #ifndef __IPHONE__
+-				 "    -i, --image         prints logo as image and use a custom image "
+-				 "if provided\n"
+-				 "                        %sworks in most terminals\n"
++         "    -i, --image         prints logo as image and use a custom image "
++         "if provided\n"
++         "                        %sworks in most terminals\n"
+ #else
+-				 "    -i, --image         prints logo as image and use a custom image "
+-				 "if provided\n"
+-				 "                        %sdisabled under iOS\n"
+-#endif
+-				 "                        read README.md for more info%s\n"
+-				 "    -l, --list          lists all supported distributions\n"
+-				 "    -V, --version       prints the current uwufetch version\n"
++         "    -i, --image         prints logo as image and use a custom image "
++         "if provided\n"
++         "                        %sdisabled under iOS\n"
++#endif
++         "                        read README.md for more info%s\n"
++         "    -l, --list          lists all supported distributions\n"
++         "    -V, --version       prints the current uwufetch version\n"
+ #ifdef __DEBUG__
+-				 "    -v, --verbose       logs everything\n"
++         "    -v, --verbose       logs everything\n"
+ #endif
+-				 "    -w, --write-cache   writes to the cache file (~/.cache/uwufetch.cache)\n"
+-				 "    -r, --read-cache    reads from the cache file (~/.cache/uwufetch.cache)\n",
+-				 arg,
++         "    -w, --write-cache   writes to the cache file (~/.cache/uwufetch.cache)\n"
++         "    -r, --read-cache    reads from the cache file (~/.cache/uwufetch.cache)\n",
++         arg,
+ #ifndef __IPHONE__
+-				 BLUE,
++         BLUE,
+ #else
+-				 RED,
++         RED,
+ #endif
+-				 NORMAL);
++         NORMAL);
+ }
+ 
+ // the main function is on the bottom of the file to avoid double function declarations
+ int main(int argc, char* argv[]) {
+ #ifdef __DEBUG__
+-	verbose_enabled = get_verbose_handle();
++  verbose_enabled = get_verbose_handle();
+ #endif
+-	struct user_config user_config_file = {0};
+-	struct info user_info								= {0};
+-	struct configuration config_flags		= parse_config(&user_info, &user_config_file);
+-	char* custom_distro_name						= NULL;
+-	char* custom_image_name							= NULL;
++  struct user_config user_config_file = {0};
++  struct info user_info               = {0};
++  struct configuration config_flags   = parse_config(&user_info, &user_config_file);
++  char* custom_distro_name            = NULL;
++  char* custom_image_name             = NULL;
+ 
+ #ifdef _WIN32
+-	// packages disabled by default because chocolatey is too slow
+-	config_flags.show.pkgs = 0;
++  // packages disabled by default because chocolatey is too slow
++  config_flags.show.pkgs = 0;
+ #endif
+ 
+-	int opt											 = 0;
+-	struct option long_options[] = {
+-			{"config", required_argument, NULL, 'c'},
+-			{"distro", required_argument, NULL, 'd'},
+-			{"help", no_argument, NULL, 'h'},
+-			{"image", optional_argument, NULL, 'i'},
+-			{"list", no_argument, NULL, 'l'},
+-			{"read-cache", no_argument, NULL, 'r'},
+-			{"version", no_argument, NULL, 'V'},
++  int opt                      = 0;
++  struct option long_options[] = {
++      {"config", required_argument, NULL, 'c'},
++      {"distro", required_argument, NULL, 'd'},
++      {"help", no_argument, NULL, 'h'},
++      {"image", optional_argument, NULL, 'i'},
++      {"list", no_argument, NULL, 'l'},
++      {"read-cache", no_argument, NULL, 'r'},
++      {"version", no_argument, NULL, 'V'},
+ #ifdef __DEBUG__
+-			{"verbose", no_argument, NULL, 'v'},
++      {"verbose", no_argument, NULL, 'v'},
+ #endif
+-			{"write-cache", no_argument, NULL, 'w'},
+-			{0}};
++      {"write-cache", no_argument, NULL, 'w'},
++      {0}};
+ #ifdef __DEBUG__
+-	#define OPT_STRING "c:d:hi::lrVvw"
++  #define OPT_STRING "c:d:hi::lrVvw"
+ #else
+-	#define OPT_STRING "c:d:hi::lrVw"
++  #define OPT_STRING "c:d:hi::lrVw"
+ #endif
+ 
+-	// reading cmdline options
+-	while ((opt = getopt_long(argc, argv, OPT_STRING, long_options, NULL)) != -1) {
+-		switch (opt) {
+-		case 'c': // set the config directory
+-			user_config_file.config_directory = optarg;
+-			config_flags											= parse_config(&user_info, &user_config_file);
+-			break;
+-		case 'd': // set the distribution name
+-			custom_distro_name = optarg;
+-			break;
+-		case 'h':
+-			usage(argv[0]);
+-			return 0;
+-		case 'i': // set ascii logo as output
+-			config_flags.show_image = true;
+-			if (argv[optind]) custom_image_name = argv[optind];
+-			break;
+-		case 'l':
+-			list(argv[0]);
+-			return 0;
+-		case 'r':
+-			user_config_file.read_enabled = true;
+-			break;
+-		case 'V':
+-			printf("UwUfetch version %s\n", UWUFETCH_VERSION);
+-			return 0;
++  // reading cmdline options
++  while ((opt = getopt_long(argc, argv, OPT_STRING, long_options, NULL)) != -1) {
++    switch (opt) {
++    case 'c': // set the config directory
++      user_config_file.config_directory = optarg;
++      config_flags                      = parse_config(&user_info, &user_config_file);
++      break;
++    case 'd': // set the distribution name
++      custom_distro_name = optarg;
++      break;
++    case 'h':
++      usage(argv[0]);
++      return 0;
++    case 'i': // set ascii logo as output
++      config_flags.show_image = true;
++      if (argv[optind]) custom_image_name = argv[optind];
++      break;
++    case 'l':
++      list(argv[0]);
++      return 0;
++    case 'r':
++      user_config_file.read_enabled = true;
++      break;
++    case 'V':
++      printf("UwUfetch version %s\n", UWUFETCH_VERSION);
++      return 0;
+ #ifdef __DEBUG__
+-		case 'v':
+-			*verbose_enabled = true;
+-			LOG_I("version %s", UWUFETCH_VERSION);
+-			break;
+-#endif
+-		case 'w':
+-			user_config_file.write_enabled = true;
+-			break;
+-		default:
+-			return 1;
+-		}
+-	}
+-
+-	if (user_config_file.read_enabled) {
+-		// if no cache file found write to it
+-		if (!read_cache(&user_info)) {
+-			user_config_file.read_enabled	 = false;
+-			user_config_file.write_enabled = true;
+-		} else {
+-			int buf_sz = 256;
+-			char buffer[buf_sz]; // line buffer
+-			struct thread_varg vargp = {
+-					buffer, &user_info, NULL, {true, true, true, true, true, true, true, true}};
+-			if (config_flags.show.ram) get_ram(&vargp);
+-			if (config_flags.show.uptime) {
+-				LOG_I("getting additional not-cached info");
+-				get_sys(&user_info);
+-				get_upt(&vargp);
+-			}
+-		}
+-	}
+-	if (!user_config_file.read_enabled)
+-		get_info(config_flags.show, &user_info);
+-
+-	if (user_config_file.write_enabled) {
+-		write_cache(&user_info);
+-	}
+-	if (custom_distro_name) sprintf(user_info.os_name, "%s", custom_distro_name);
+-	if (custom_image_name) sprintf(user_info.image_name, "%s", custom_image_name);
+-
+-	uwufy_all(&user_info);
+-
+-	// print ascii or image and align cursor for print_info()
+-	printf("\033[%dA", config_flags.show_image ? print_image(&user_info) : print_ascii(&user_info));
+-
+-	// print info and move cursor down if the number of printed lines is smaller that the default image height
+-	printf("\033[%dB", 9 - print_info(&config_flags, &user_info));
+-	LOG_I("Execution completed successfully!");
+-	return 0;
++    case 'v':
++      *verbose_enabled = true;
++      LOG_I("version %s", UWUFETCH_VERSION);
++      break;
++#endif
++    case 'w':
++      user_config_file.write_enabled = true;
++      break;
++    default:
++      return 1;
++    }
++  }
++
++  if (user_config_file.read_enabled) {
++    // if no cache file found write to it
++    if (!read_cache(&user_info)) {
++      user_config_file.read_enabled  = false;
++      user_config_file.write_enabled = true;
++    } else {
++      int buf_sz = 256;
++      char buffer[buf_sz]; // line buffer
++      struct thread_varg vargp = {
++          buffer, &user_info, NULL, {true, true, true, true, true, true, true, true}};
++      if (config_flags.show.ram) get_ram(&vargp);
++      if (config_flags.show.uptime) {
++        LOG_I("getting additional not-cached info");
++        get_sys(&user_info);
++        get_upt(&vargp);
++      }
++    }
++  }
++  if (!user_config_file.read_enabled)
++    get_info(config_flags.show, &user_info);
++  LOG_V(user_info.gpu_model[1]);
++
++  if (user_config_file.write_enabled) {
++    write_cache(&user_info);
++  }
++  if (custom_distro_name) sprintf(user_info.os_name, "%s", custom_distro_name);
++  if (custom_image_name) sprintf(user_info.image_name, "%s", custom_image_name);
++
++  uwufy_all(&user_info);
++
++  // print ascii or image and align cursor for print_info()
++  printf("\033[%dA", config_flags.show_image ? print_image(&user_info) : print_ascii(&user_info));
++
++  // print info and move cursor down if the number of printed lines is smaller that the default image height
++  int to_move = 9 - print_info(&config_flags, &user_info);
++  printf("\033[%d%c", to_move < 0 ? -to_move : to_move, to_move < 0 ? 'A' : 'B');
++  LOG_I("Execution completed successfully!");
++  return 0;
+ }
